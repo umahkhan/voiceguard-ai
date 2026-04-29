@@ -7,9 +7,9 @@
 
 ## Live Demo
 
-**Try it here:** _coming soon — deploy to Streamlit Community Cloud (instructions below)_
+**▶ Try it here: https://voiceguard-ai.streamlit.app**
 
-After deployment, paste your URL here, e.g. `https://umahkhan-voiceguard.streamlit.app`.
+No setup, no signup — open the link, pick a scenario, click **Place Incoming Call**, and switch between the **Live Simulation** and **Call Risk Audit** tabs to watch both panels animate in sync.
 
 ---
 
