@@ -28,24 +28,24 @@ AUDIO_DIR = Path(__file__).parent / "audio"
 
 
 # ---------------------------------------------------------------------------
-# Design tokens
+# Design tokens — Chase brand palette
 # ---------------------------------------------------------------------------
-NAVY        = "#0a3d7a"
-NAVY_DEEP   = "#06285a"
-ACCENT      = "#378add"
-INK         = "#0f172a"
+NAVY        = "#003087"   # Chase primary blue
+NAVY_DEEP   = "#001a4d"   # Chase deep blue
+ACCENT      = "#0072cf"   # Chase interactive blue
+INK         = "#1a1a1a"   # Chase body text
 PAPER       = "#ffffff"
-CANVAS      = "#ffffff"
-BORDER      = "#e0e0e0"
-MUTED       = "#64748b"
+CANVAS      = "#f5f6f8"   # Chase page background
+BORDER      = "#d8d8d8"   # Chase border
+MUTED       = "#616c7d"   # Chase secondary text
 
-PASS_BG,  PASS_TEXT  = "#14532d", "#4ade80"
-FLAG_BG,  FLAG_TEXT  = "#451a03", "#f59e0b"
-BLOCK_BG, BLOCK_TEXT = "#450a0a", "#f87171"
+PASS_BG,  PASS_TEXT  = "#0a3d1e", "#4ade80"
+FLAG_BG,  FLAG_TEXT  = "#3d2500", "#f59e0b"
+BLOCK_BG, BLOCK_TEXT = "#3d0a0a", "#f87171"
 
-LOW_FG,  LOW_BG  = "#16a34a", "#dcfce7"
-MED_FG,  MED_BG  = "#d97706", "#fef3c7"
-HIGH_FG, HIGH_BG = "#dc2626", "#fee2e2"
+LOW_FG,  LOW_BG  = "#1a7a3c", "#e0f5e9"
+MED_FG,  MED_BG  = "#b45309", "#fef3c7"
+HIGH_FG, HIGH_BG = "#c81e1e", "#fee2e2"
 
 
 # ---------------------------------------------------------------------------
@@ -240,23 +240,23 @@ def meta_strip_html(state: dict, call_state: str, progress: float) -> str:
         '<div class="vg-meta-row">'
         '<div class="vg-meta">'
         '<div class="vg-meta-l">Call ID</div>'
-        f'<div class="vg-meta-v">#VG-{session_id:05d}</div>'
-        f'<div class="vg-meta-s">{state["caller_id"]}</div>'
+        f'<div class="vg-meta-v" style="color:#1a1a1a;">#VG-{session_id:05d}</div>'
+        f'<div class="vg-meta-s" style="color:#616c7d;">{state["caller_id"]}</div>'
         '</div>'
         '<div class="vg-meta">'
         '<div class="vg-meta-l">Final Verdict</div>'
-        f'<div class="vg-meta-v">{verdict}</div>'
-        f'<div class="vg-meta-s">{verdict_sub}</div>'
+        f'<div class="vg-meta-v" style="color:#1a1a1a;">{verdict}</div>'
+        f'<div class="vg-meta-s" style="color:#616c7d;">{verdict_sub}</div>'
         '</div>'
         '<div class="vg-meta">'
         '<div class="vg-meta-l">AI Confidence</div>'
-        f'<div class="vg-meta-v">{conf_v}</div>'
-        f'<div class="vg-meta-s">{conf_sub}</div>'
+        f'<div class="vg-meta-v" style="color:#1a1a1a;">{conf_v}</div>'
+        f'<div class="vg-meta-s" style="color:#616c7d;">{conf_sub}</div>'
         '</div>'
         '<div class="vg-meta">'
         '<div class="vg-meta-l">Audio + Scores</div>'
-        f'<div class="vg-meta-v">{audio_v}</div>'
-        f'<div class="vg-meta-s">{audio_sub}</div>'
+        f'<div class="vg-meta-v" style="color:#1a1a1a;">{audio_v}</div>'
+        f'<div class="vg-meta-s" style="color:#616c7d;">{audio_sub}</div>'
         '</div>'
         '</div>'
     )
@@ -300,176 +300,195 @@ def placeholder_html(call_state: str) -> str:
 def inject_css() -> None:
     css = (
         "<style>"
-        # Page chrome
+        # Page chrome — Chase uses a light gray canvas
         ".block-container{padding-top:0.45rem!important;padding-bottom:0.45rem!important;"
         "padding-left:1.4rem!important;padding-right:1.4rem!important;max-width:100%;}"
         "header[data-testid='stHeader']{display:none;height:0;}"
         "footer{visibility:hidden;}"
         "#MainMenu{visibility:hidden;}"
         "[data-testid='stToolbar']{display:none;}"
-        f"html,body,[class*='css']{{font-family:system-ui,-apple-system,'Segoe UI',sans-serif;font-size:16px;color:{INK};}}"
+        # Chase uses their own font stack; -apple-system is the closest safe fallback
+        f"html,body,[class*='css']{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:16px;color:{INK};}}"
         f".stApp{{background:{CANVAS};}}"
 
-        # Header banner
-        f".vg-header{{background:linear-gradient(135deg,{NAVY_DEEP} 0%,{NAVY} 60%,{ACCENT} 130%);"
-        "padding:10px 22px;border-radius:12px;color:#fff;margin-bottom:7px;"
+        # Header banner — solid Chase primary blue, no gradient
+        f".vg-header{{background:{NAVY};"
+        "padding:14px 24px;border-radius:0;color:#fff;margin-bottom:0;"
         "display:flex;align-items:center;justify-content:space-between;"
-        "box-shadow:0 4px 14px rgba(10,61,122,0.18);}"
-        ".vg-header .vg-h-title{font-size:26px;font-weight:800;letter-spacing:-0.2px;}"
-        ".vg-header .vg-h-sub{font-size:15px;opacity:0.88;font-weight:500;margin-top:1px;}"
-        ".vg-header .vg-h-meta{font-size:14px;opacity:0.85;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;}"
+        f"border-bottom:3px solid {ACCENT};}}"
+        ".vg-header .vg-h-title{font-size:22px;font-weight:700;letter-spacing:-0.3px;line-height:1.2;}"
+        ".vg-header .vg-h-sub{font-size:13px;color:#a8c4e8;font-weight:400;margin-top:2px;letter-spacing:0.1px;}"
+        f".vg-header .vg-h-meta{{font-size:12px;color:#93b9df;font-weight:600;letter-spacing:1.2px;text-transform:uppercase;background:rgba(255,255,255,0.12);padding:4px 10px;border-radius:3px;}}"
 
-        # Tabs
-        f".stTabs [data-baseweb='tab-list']{{gap:4px;border-bottom:1px solid {BORDER};}}"
-        f".stTabs [data-baseweb='tab']{{background:transparent;color:{MUTED};font-weight:700;"
-        "font-size:16px;padding:5px 14px;border-radius:8px 8px 0 0;letter-spacing:0.4px;}"
-        f".stTabs [aria-selected='true']{{background:{NAVY}!important;color:#fff!important;}}"
+        # Tabs — Chase-style: underline active, no filled pill
+        f".stTabs [data-baseweb='tab-list']{{gap:0;border-bottom:2px solid {BORDER};background:#fff;padding:0 4px;}}"
+        f".stTabs [data-baseweb='tab']{{background:transparent;color:{MUTED};font-weight:600;"
+        f"font-size:15px;padding:10px 18px;border-radius:0;letter-spacing:0.2px;border-bottom:3px solid transparent;margin-bottom:-2px;}}"
+        f".stTabs [aria-selected='true']{{color:{NAVY}!important;border-bottom:3px solid {NAVY}!important;font-weight:700!important;background:transparent!important;}}"
 
-        # Generic card
-        f".vg-card{{background:{PAPER};border:0.5px solid {BORDER};border-radius:12px;"
-        "padding:9px 14px;margin-bottom:7px;}"
+        # Generic card — Chase white card with subtle shadow
+        f".vg-card{{background:{PAPER};border:1px solid {BORDER};border-radius:4px;"
+        "padding:12px 16px;margin-bottom:8px;box-shadow:0 1px 3px rgba(0,0,0,0.06);}}"
 
-        # Incoming call card
-        f".vg-incoming{{background:linear-gradient(135deg,{NAVY_DEEP} 0%,{NAVY} 100%);"
-        "color:#fff;border-radius:12px;padding:11px 16px;position:relative;"
-        "margin-bottom:7px;box-shadow:0 4px 14px rgba(10,61,122,0.2);}"
-        ".vg-incoming .vg-i-label{font-size:13px;letter-spacing:1.6px;text-transform:uppercase;"
-        "color:#93c5fd;font-weight:800;}"
-        ".vg-incoming .vg-i-num{font-size:27px;font-weight:800;letter-spacing:-0.3px;"
-        "margin-top:3px;font-variant-numeric:tabular-nums;}"
-        ".vg-incoming .vg-i-sub{font-size:15px;color:#cbd5e1;margin-top:1px;}"
-        ".vg-incoming .vg-i-live{position:absolute;top:12px;right:12px;"
-        "background:rgba(74,222,128,0.18);color:#4ade80;"
-        "border:1px solid rgba(74,222,128,0.4);padding:2px 8px;"
-        "border-radius:999px;font-size:13px;font-weight:800;letter-spacing:0.6px;}"
-        ".vg-incoming .vg-i-timer-label{font-size:13px;letter-spacing:1.4px;text-transform:uppercase;"
-        "color:#93c5fd;font-weight:800;margin-top:6px;}"
-        ".vg-incoming .vg-i-timer{font-size:30px;font-weight:800;font-variant-numeric:tabular-nums;"
+        # Incoming call card — Chase blue, flat/solid
+        f".vg-incoming{{background:{NAVY};"
+        "color:#fff;border-radius:4px;padding:14px 18px;position:relative;"
+        "margin-bottom:8px;border-left:4px solid #4ade80;}}"
+        ".vg-incoming .vg-i-label{font-size:11px;letter-spacing:1.8px;text-transform:uppercase;"
+        "color:#93c5fd;font-weight:700;}"
+        ".vg-incoming .vg-i-num{font-size:26px;font-weight:700;letter-spacing:-0.3px;"
+        "margin-top:4px;font-variant-numeric:tabular-nums;}"
+        ".vg-incoming .vg-i-sub{font-size:14px;color:#cbd5e1;margin-top:2px;}"
+        ".vg-incoming .vg-i-live{position:absolute;top:14px;right:14px;"
+        "background:rgba(74,222,128,0.2);color:#4ade80;"
+        "border:1px solid rgba(74,222,128,0.5);padding:3px 10px;"
+        "border-radius:3px;font-size:12px;font-weight:700;letter-spacing:0.8px;}"
+        ".vg-incoming .vg-i-timer-label{font-size:11px;letter-spacing:1.6px;text-transform:uppercase;"
+        "color:#93c5fd;font-weight:700;margin-top:8px;}"
+        ".vg-incoming .vg-i-timer{font-size:28px;font-weight:700;font-variant-numeric:tabular-nums;"
         "color:#fff;letter-spacing:-0.4px;line-height:1.1;}"
 
-        # Waveform
-        ".vg-wave{display:flex;align-items:center;gap:3px;margin-top:6px;height:26px;}"
-        f".vg-wave .vg-bar{{width:4px;background:{ACCENT};border-radius:2px;"
+        # Waveform — Chase accent blue bars
+        ".vg-wave{display:flex;align-items:center;gap:3px;margin-top:8px;height:28px;}"
+        f".vg-wave .vg-bar{{width:3px;background:{ACCENT};border-radius:1px;opacity:0.85;"
         "animation:wave-anim 1s ease-in-out infinite;}"
-        "@keyframes wave-anim{0%,100%{height:5px;}50%{height:22px;}}"
+        "@keyframes wave-anim{0%,100%{height:4px;}50%{height:24px;}}"
 
-        # Verdict bar
-        ".vg-verdict{border-radius:12px;padding:10px 18px;margin-bottom:7px;"
+        # Verdict bar — Chase flat card style
+        ".vg-verdict{border-radius:4px;padding:12px 18px;margin-bottom:8px;"
         "display:flex;justify-content:space-between;align-items:center;"
-        "box-shadow:0 4px 14px rgba(15,23,42,0.08);}"
-        f".vg-verdict.pass{{background:{PASS_BG};color:{PASS_TEXT};border:1px solid rgba(74,222,128,0.35);}}"
-        f".vg-verdict.flag{{background:{FLAG_BG};color:{FLAG_TEXT};border:1px solid rgba(245,158,11,0.35);}}"
-        f".vg-verdict.block{{background:{BLOCK_BG};color:{BLOCK_TEXT};border:1px solid rgba(248,113,113,0.4);}}"
-        ".vg-verdict .vg-v-label{font-size:13px;letter-spacing:1.7px;text-transform:uppercase;opacity:0.85;font-weight:800;}"
-        ".vg-verdict .vg-v-text{font-size:32px;font-weight:800;letter-spacing:-0.4px;color:#fff;line-height:1.1;}"
-        ".vg-verdict .vg-v-sub{font-size:15px;font-weight:700;opacity:0.9;letter-spacing:0.3px;}"
-        ".vg-verdict .vg-v-conf-label{font-size:13px;letter-spacing:1.6px;text-transform:uppercase;opacity:0.8;font-weight:800;text-align:right;}"
-        ".vg-verdict .vg-v-conf{font-size:34px;font-weight:800;color:#fff;text-align:right;font-variant-numeric:tabular-nums;line-height:1.1;}"
+        "box-shadow:0 1px 4px rgba(0,0,0,0.10);}"
+        f".vg-verdict.pass{{background:{PASS_BG};color:{PASS_TEXT};border-left:5px solid #4ade80;}}"
+        f".vg-verdict.flag{{background:{FLAG_BG};color:{FLAG_TEXT};border-left:5px solid #f59e0b;}}"
+        f".vg-verdict.block{{background:{BLOCK_BG};color:{BLOCK_TEXT};border-left:5px solid #f87171;}}"
+        ".vg-verdict .vg-v-label{font-size:11px;letter-spacing:1.8px;text-transform:uppercase;color:rgba(255,255,255,0.9);font-weight:700;}"
+        ".vg-verdict .vg-v-text{font-size:30px;font-weight:700;letter-spacing:-0.3px;color:#fff;line-height:1.1;}"
+        ".vg-verdict .vg-v-sub{font-size:14px;font-weight:600;color:rgba(255,255,255,0.9);}"
+        ".vg-verdict .vg-v-conf-label{font-size:11px;letter-spacing:1.6px;text-transform:uppercase;color:rgba(255,255,255,0.9);font-weight:700;text-align:right;}"
+        ".vg-verdict .vg-v-conf{font-size:32px;font-weight:700;color:#fff;text-align:right;font-variant-numeric:tabular-nums;line-height:1.1;}"
 
-        # Risk metric card
-        f".vg-metric{{background:{PAPER};border:0.5px solid {BORDER};border-radius:12px;padding:9px 13px;height:100%;}}"
-        f".vg-metric .vg-m-label{{font-size:13px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;color:{MUTED};}}"
-        f".vg-metric .vg-m-value{{font-size:32px;font-weight:800;color:{INK};font-variant-numeric:tabular-nums;line-height:1;}}"
-        f".vg-metric .vg-m-desc{{font-size:14px;color:{MUTED};line-height:1.4;margin-top:4px;font-weight:500;}}"
-        ".vg-metric .vg-m-bar{height:4px;border-radius:999px;background:#e5e7eb;margin-top:6px;overflow:hidden;}"
-        ".vg-metric .vg-m-bar>span{display:block;height:100%;border-radius:999px;}"
+        # Risk metric card — Chase flat white card
+        f".vg-metric{{background:{PAPER};border:1px solid {BORDER};border-radius:4px;padding:12px 14px;height:100%;box-shadow:0 1px 3px rgba(0,0,0,0.05);}}"
+        f".vg-metric .vg-m-label{{font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:{MUTED};}}"
+        f".vg-metric .vg-m-value{{font-size:30px;font-weight:700;color:{INK};font-variant-numeric:tabular-nums;line-height:1;}}"
+        f".vg-metric .vg-m-desc{{font-size:13px;color:{MUTED};line-height:1.4;margin-top:4px;font-weight:400;}}"
+        ".vg-metric .vg-m-bar{height:3px;border-radius:2px;background:#e8e8e8;margin-top:8px;overflow:hidden;}"
+        ".vg-metric .vg-m-bar>span{display:block;height:100%;border-radius:2px;}"
 
-        # Badges
-        ".vg-badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:800;letter-spacing:1.1px;text-transform:uppercase;}"
+        # Badges — Chase pill-style labels
+        ".vg-badge{display:inline-block;padding:2px 8px;border-radius:3px;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;}"
         f".vg-badge.low{{color:{LOW_FG};background:{LOW_BG};}}"
         f".vg-badge.med{{color:{MED_FG};background:{MED_BG};}}"
         f".vg-badge.high{{color:{HIGH_FG};background:{HIGH_BG};}}"
 
-        # Advisory cards
-        f".vg-advisory{{background:{PAPER};border:0.5px solid {BORDER};border-radius:12px;padding:9px 14px;height:100%;}}"
-        ".vg-advisory.pass-acc{border-left:4px solid #4ade80;}"
+        # Advisory cards — Chase white card with left accent
+        f".vg-advisory{{background:{PAPER};border:1px solid {BORDER};border-radius:4px;padding:12px 16px;height:100%;box-shadow:0 1px 3px rgba(0,0,0,0.05);}}"
+        ".vg-advisory.pass-acc{border-left:4px solid #22c55e;}"
         ".vg-advisory.flag-acc{border-left:4px solid #f59e0b;}"
-        ".vg-advisory.block-acc{border-left:4px solid #f87171;}"
-        f".vg-advisory .vg-a-label{{font-size:13px;font-weight:800;letter-spacing:1.3px;text-transform:uppercase;color:{NAVY};}}"
-        f".vg-advisory .vg-a-action{{background:#f1f5f9;border-radius:8px;padding:7px 11px;margin-top:4px;font-size:16px;font-weight:700;color:{INK};line-height:1.4;}}"
-        f".vg-advisory ul{{margin:4px 0 0 0;padding-left:18px;font-size:15px;color:{INK};line-height:1.5;}}"
-        ".vg-advisory li{margin-bottom:2px;}"
-        f".vg-advisory .vg-a-narrative{{font-size:15px;color:{INK};line-height:1.5;margin-top:5px;font-weight:500;}}"
-        ".vg-advisory .vg-a-pills{margin-top:6px;display:flex;gap:6px;flex-wrap:wrap;}"
-        f".vg-advisory .vg-pill{{background:#f1f5f9;border-radius:999px;padding:3px 9px;font-size:13px;font-weight:700;color:{INK};letter-spacing:0.3px;}}"
-        f".vg-advisory .vg-pill .vg-pill-k{{color:{MUTED};font-weight:600;}}"
+        ".vg-advisory.block-acc{border-left:4px solid #ef4444;}"
+        f".vg-advisory .vg-a-label{{font-size:11px;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;color:{NAVY};}}"
+        f".vg-advisory .vg-a-action{{background:{CANVAS};border:1px solid {BORDER};border-radius:3px;padding:8px 12px;margin-top:5px;font-size:15px;font-weight:600;color:{INK};line-height:1.4;}}"
+        f".vg-advisory ul{{margin:5px 0 0 0;padding-left:18px;font-size:14px;color:{INK};line-height:1.6;}}"
+        ".vg-advisory li{margin-bottom:3px;}"
+        f".vg-advisory .vg-a-narrative{{font-size:14px;color:{INK};line-height:1.5;margin-top:6px;font-weight:400;}}"
+        ".vg-advisory .vg-a-pills{margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;}"
+        f".vg-advisory .vg-pill{{background:{CANVAS};border:1px solid {BORDER};border-radius:3px;padding:3px 10px;font-size:13px;font-weight:600;color:{INK};}}"
+        f".vg-advisory .vg-pill .vg-pill-k{{color:{MUTED};font-weight:500;}}"
 
-        # Inputs
-        f".stTextInput input,.stSelectbox > div > div{{border-radius:8px!important;border:1px solid {BORDER}!important;font-size:16px!important;}}"
-        f".stTextInput input:focus{{border-color:{ACCENT}!important;box-shadow:0 0 0 2px rgba(55,138,221,0.18)!important;}}"
+        # Force Chase ink on Streamlit-generated text — overrides dark-mode leakage
+        f"[data-testid='stMarkdownContainer'] h1,"
+        f"[data-testid='stMarkdownContainer'] h2,"
+        f"[data-testid='stMarkdownContainer'] h3,"
+        f"[data-testid='stMarkdownContainer']>div>p{{color:{INK}!important;}}"
+        f"[data-testid='stWidgetLabel'] p,"
+        f"[data-testid='stWidgetLabel'] label{{color:{INK}!important;}}"
+        f"label{{color:{INK}!important;}}"
 
-        # Button
-        f".stButton > button{{background:{NAVY}!important;color:#fff!important;border:none!important;border-radius:8px!important;padding:10px 18px!important;font-size:16px!important;font-weight:700!important;letter-spacing:0.4px!important;width:100%;}}"
-        f".stButton > button:hover{{background:{NAVY_DEEP}!important;}}"
+        # Inputs — Chase square-ish style
+        f".stTextInput input,.stSelectbox > div > div{{border-radius:3px!important;border:1px solid {BORDER}!important;font-size:15px!important;background:#fff!important;color:{INK}!important;}}"
+        f".stTextInput input:focus{{border-color:{ACCENT}!important;box-shadow:0 0 0 2px rgba(0,114,207,0.15)!important;outline:none!important;}}"
+        f".stSelectbox [data-baseweb='select'] *{{color:{INK}!important;}}"
+        f"""
+        .stTextInput input:disabled {{
+            color: {INK} !important;
+            -webkit-text-fill-color: {INK} !important;
+            opacity: 1 !important;
+            font-weight: 600 !important;
+            background-color: #f5f6f8 !important;
+            border: 1px solid {BORDER} !important;
+        }}
+        """
 
-        # Path Taken pills
+        # Button — Chase primary: square corners, solid blue
+        f".stButton > button{{background:{NAVY}!important;color:#fff!important;border:none!important;border-radius:4px!important;padding:11px 20px!important;font-size:15px!important;font-weight:700!important;letter-spacing:0.3px!important;width:100%;}}"
+        f".stButton > button:hover{{background:{ACCENT}!important;transition:background 0.15s;}}"
+
+        # Path Taken — Chase flat chips
         ".vg-path{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;}"
-        ".vg-path .vg-step{flex:1;min-width:130px;padding:8px 10px;border-radius:999px;"
-        "font-size:15px;font-weight:800;text-align:center;letter-spacing:0.3px;"
-        "line-height:1.3;transition:all 0.2s ease;}"
-        f".vg-path .vg-step.run{{background:{NAVY};color:#fff;border:1px solid {NAVY};}}"
-        f".vg-path .vg-step.skip{{background:#f8fafc;color:{MUTED};border:1.5px dashed #cbd5e1;opacity:0.7;}}"
-        f".vg-path .vg-step.active{{background:{ACCENT};color:#fff;border:1px solid {ACCENT};"
+        ".vg-path .vg-step{flex:1;min-width:120px;padding:7px 10px;border-radius:3px;"
+        "font-size:14px;font-weight:600;text-align:center;letter-spacing:0.2px;"
+        "line-height:1.3;transition:all 0.15s ease;}"
+        f".vg-path .vg-step.run{{background:{NAVY};color:#fff;}}"
+        f".vg-path .vg-step.skip{{background:#f0f0f0;color:{MUTED};border:1px dashed {BORDER};opacity:0.75;}}"
+        f".vg-path .vg-step.active{{background:{ACCENT};color:#fff;"
         "animation:stage-pulse 1.1s ease-in-out infinite;}"
-        ".vg-path .vg-step.pending{background:#f1f5f9;color:#cbd5e1;border:1px solid #e2e8f0;}"
+        f".vg-path .vg-step.pending{{background:{CANVAS};color:{MUTED};border:1px solid {BORDER};}}"
         "@keyframes stage-pulse{"
-        "0%,100%{box-shadow:0 0 0 0 rgba(55,138,221,0.55);}"
-        "50%{box-shadow:0 0 0 7px rgba(55,138,221,0);}"
+        "0%,100%{box-shadow:0 0 0 0 rgba(0,114,207,0.5);}"
+        "50%{box-shadow:0 0 0 6px rgba(0,114,207,0);}"
         "}"
 
-        # Audit metadata row (rendered as one HTML grid so it can update during animation)
-        f".vg-meta-row{{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:6px;}}"
+        # Audit metadata row
+        f".vg-meta-row{{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:8px;}}"
 
-        # Placeholder card (right column when call hasn't completed)
-        ".vg-placeholder{background:#fff;border-radius:12px;padding:32px 28px;"
-        "text-align:center;}"
-        f".vg-placeholder.idle{{border:1px dashed #cbd5e1;}}"
-        f".vg-placeholder.running{{border:1px dashed {ACCENT};}}"
-        f".vg-placeholder .vg-p-title{{font-size:17px;font-weight:800;letter-spacing:0.2px;"
-        f"color:{INK};margin-bottom:6px;}}"
+        # Placeholder
+        f".vg-placeholder{{background:#fff;border-radius:4px;padding:36px 28px;text-align:center;border:1px solid {BORDER};}}"
+        f".vg-placeholder.running{{border-color:{ACCENT};box-shadow:0 0 0 2px rgba(0,114,207,0.12);}}"
+        f".vg-placeholder .vg-p-title{{font-size:16px;font-weight:700;color:{INK};margin-bottom:8px;}}"
         f".vg-placeholder.running .vg-p-title{{color:{NAVY};}}"
-        f".vg-placeholder .vg-p-body{{font-size:15px;color:{MUTED};line-height:1.5;}}"
-        ".vg-placeholder .vg-p-dots{display:inline-flex;gap:4px;margin-top:10px;}"
-        f".vg-placeholder .vg-p-dot{{width:6px;height:6px;border-radius:50%;background:{ACCENT};"
+        f".vg-placeholder .vg-p-body{{font-size:14px;color:{MUTED};line-height:1.5;}}"
+        ".vg-placeholder .vg-p-dots{display:inline-flex;gap:5px;margin-top:12px;}"
+        f".vg-placeholder .vg-p-dot{{width:7px;height:7px;border-radius:50%;background:{ACCENT};"
         "animation:dot-bounce 1s ease-in-out infinite;}"
         ".vg-placeholder .vg-p-dot:nth-child(2){animation-delay:0.15s;}"
         ".vg-placeholder .vg-p-dot:nth-child(3){animation-delay:0.30s;}"
         "@keyframes dot-bounce{"
         "0%,80%,100%{transform:translateY(0);opacity:0.4;}"
-        "40%{transform:translateY(-4px);opacity:1;}"
+        "40%{transform:translateY(-5px);opacity:1;}"
         "}"
 
-        # Stage rows
-        f".vg-stage-row{{display:flex;align-items:center;gap:12px;padding:7px 12px;margin-bottom:4px;border-radius:8px;border:1px solid {BORDER};background:{PAPER};}}"
-        ".vg-stage-row.skip{background:#f8fafc;border:1px dashed #cbd5e1;opacity:0.78;}"
-        ".vg-stage-row .vg-s-num{width:34px;height:34px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:800;flex-shrink:0;}"
+        # Stage rows — Chase flat card rows
+        f".vg-stage-row{{display:flex;align-items:center;gap:12px;padding:9px 14px;margin-bottom:5px;border-radius:3px;border:1px solid {BORDER};background:{PAPER};box-shadow:0 1px 2px rgba(0,0,0,0.04);}}"
+        f".vg-stage-row.skip{{background:{CANVAS};border:1px solid {BORDER};opacity:0.75;}}"
+        ".vg-stage-row .vg-s-num{width:32px;height:32px;border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;flex-shrink:0;}"
         f".vg-stage-row.run .vg-s-num{{background:{NAVY};color:#fff;}}"
-        f".vg-stage-row.skip .vg-s-num{{background:#e2e8f0;color:{MUTED};}}"
+        f".vg-stage-row.skip .vg-s-num{{background:#e8e8e8;color:{MUTED};}}"
         ".vg-stage-row .vg-s-body{flex:1;min-width:0;}"
         ".vg-stage-row .vg-s-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}"
-        f".vg-stage-row .vg-s-name{{font-size:16px;font-weight:800;color:{INK};}}"
-        f".vg-stage-row .vg-s-tag{{font-size:12px;color:{MUTED};letter-spacing:1px;text-transform:uppercase;font-weight:700;}}"
-        ".vg-stage-row .vg-s-status{font-size:12px;padding:2px 7px;border-radius:999px;letter-spacing:1px;text-transform:uppercase;font-weight:800;}"
+        f".vg-stage-row .vg-s-name{{font-size:15px;font-weight:700;color:{INK};}}"
+        f".vg-stage-row .vg-s-tag{{font-size:11px;color:{MUTED};letter-spacing:1.2px;text-transform:uppercase;font-weight:600;}}"
+        ".vg-stage-row .vg-s-status{font-size:11px;padding:2px 7px;border-radius:3px;letter-spacing:1px;text-transform:uppercase;font-weight:700;}"
         f".vg-stage-row.run .vg-s-status{{background:{LOW_BG};color:{LOW_FG};}}"
-        f".vg-stage-row.skip .vg-s-status{{background:#e2e8f0;color:{MUTED};}}"
-        f".vg-stage-row .vg-s-desc{{font-size:15px;color:{INK};margin-top:2px;line-height:1.4;font-weight:500;}}"
+        f".vg-stage-row.skip .vg-s-status{{background:#e8e8e8;color:{MUTED};}}"
+        f".vg-stage-row .vg-s-desc{{font-size:14px;color:{INK};margin-top:2px;line-height:1.4;font-weight:400;}}"
         f".vg-stage-row.skip .vg-s-desc{{color:{MUTED};}}"
-        f".vg-stage-row .vg-s-score{{font-size:15px;font-weight:800;color:{INK};font-variant-numeric:tabular-nums;flex-shrink:0;min-width:140px;text-align:right;}}"
+        f".vg-stage-row .vg-s-score{{font-size:14px;font-weight:700;color:{INK};font-variant-numeric:tabular-nums;flex-shrink:0;min-width:140px;text-align:right;}}"
         f".vg-stage-row.skip .vg-s-score{{color:{MUTED};}}"
-        ".vg-stage-row.pending{background:#f8fafc;border:1px solid #e2e8f0;opacity:0.7;}"
-        ".vg-stage-row.pending .vg-s-num{background:#e2e8f0;color:#cbd5e1;}"
-        ".vg-stage-row.pending .vg-s-status{background:#e2e8f0;color:#94a3b8;}"
+        f".vg-stage-row.pending{{background:{CANVAS};border:1px solid {BORDER};opacity:0.65;}}"
+        f".vg-stage-row.pending .vg-s-num{{background:#e0e0e0;color:{MUTED};}}"
+        f".vg-stage-row.pending .vg-s-status{{background:#e0e0e0;color:{MUTED};}}"
         f".vg-stage-row.pending .vg-s-desc{{color:{MUTED};}}"
-        f".vg-stage-row.pending .vg-s-score{{color:#cbd5e1;}}"
-        f".vg-stage-row.active{{background:{PAPER};border:1px solid {ACCENT};box-shadow:0 0 0 3px rgba(55,138,221,0.15);}}"
+        f".vg-stage-row.pending .vg-s-score{{color:{MUTED};}}"
+        f".vg-stage-row.active{{background:{PAPER};border:1px solid {ACCENT};box-shadow:0 0 0 2px rgba(0,114,207,0.12);}}"
         f".vg-stage-row.active .vg-s-num{{background:{ACCENT};color:#fff;animation:stage-pulse 1.1s ease-in-out infinite;}}"
-        ".vg-stage-row.active .vg-s-status{background:#dbeafe;color:#1d4ed8;}"
+        ".vg-stage-row.active .vg-s-status{background:#dbeafe;color:#1a56c4;}"
 
-        # Audit metadata
-        f".vg-meta{{background:{PAPER};border:0.5px solid {BORDER};border-radius:12px;padding:8px 13px;height:100%;}}"
-        f".vg-meta .vg-meta-l{{font-size:12px;letter-spacing:1.3px;text-transform:uppercase;color:{MUTED};font-weight:800;}}"
-        f".vg-meta .vg-meta-v{{font-size:24px;font-weight:800;color:{INK};font-variant-numeric:tabular-nums;margin-top:3px;line-height:1.1;}}"
-        f".vg-meta .vg-meta-s{{font-size:14px;color:{MUTED};margin-top:3px;font-weight:600;}}"
+        # Audit metadata tiles
+        f".vg-meta{{background:{PAPER};border:1px solid {BORDER};border-radius:4px;padding:10px 14px;height:100%;box-shadow:0 1px 2px rgba(0,0,0,0.04);}}"
+        # .vg-meta-l is used both inside .vg-meta tiles and inside .vg-card headers — needs a standalone rule
+        f".vg-meta-l{{font-size:11px;letter-spacing:1.4px;text-transform:uppercase;color:{MUTED}!important;font-weight:700;}}"
+        f".vg-meta .vg-meta-v{{font-size:22px;font-weight:700;color:{INK}!important;font-variant-numeric:tabular-nums;margin-top:4px;line-height:1.1;}}"
+        f".vg-meta .vg-meta-s{{font-size:13px;color:{MUTED}!important;margin-top:3px;font-weight:500;}}"
 
         "</style>"
     )
@@ -499,13 +518,14 @@ def incoming_call_html(caller_id: str, _scenario_name: str, timer_value: float) 
         for i in range(9)
     )
     return (
-        '<div class="vg-incoming">'
+        f'<div class="vg-incoming" style="background:#003087;color:#fff;border-radius:4px;'
+        f'padding:14px 18px;position:relative;margin-bottom:8px;border-left:4px solid #4ade80;">'
         '<div class="vg-i-live">● LIVE</div>'
-        '<div class="vg-i-label">Incoming Call</div>'
-        f'<div class="vg-i-num">{caller_id}</div>'
-        '<div class="vg-i-sub">Chase Fraud Helpline · IVR</div>'
-        '<div class="vg-i-timer-label">Audio Duration</div>'
-        f'<div class="vg-i-timer">{timer_value:0.1f}s</div>'
+        '<div class="vg-i-label" style="color:#93c5fd;">Incoming Call</div>'
+        f'<div class="vg-i-num" style="color:#fff;">{caller_id}</div>'
+        '<div class="vg-i-sub" style="color:#cbd5e1;">Chase Fraud Helpline · IVR</div>'
+        '<div class="vg-i-timer-label" style="color:#93c5fd;">Audio Duration</div>'
+        f'<div class="vg-i-timer" style="color:#fff;">{timer_value:0.1f}s</div>'
         f'<div class="vg-wave">{bars}</div>'
         '</div>'
     )
