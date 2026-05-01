@@ -19,7 +19,7 @@ def agent_handoff_agent(state: VoiceGuardState) -> VoiceGuardState:
     # If Stage 3 was skipped (fast-track from high-confidence Stage 2) we still
     # weight the entry confidence heavier — it is the strongest signal we have.
     agent_confidence = round(0.5 * entry_conf + 0.5 * nav_score, 3)
-    step_up = agent_confidence > 0.6
+    step_up = agent_confidence >= 0.5
 
     caller = state.get("caller_id", "UNKNOWN")
     prompt = (

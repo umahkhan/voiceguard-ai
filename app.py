@@ -598,7 +598,7 @@ def render_advisory_left(state: dict) -> None:
 
 def render_advisory_right(state: dict) -> None:
     ivr = "Suspicious" if state["behavior"] >= 0.50 else "Normal"
-    otp = "Triggered" if state["agent_susp"] > 0.60 else "Not triggered"
+    otp = "Triggered" if state["agent_susp"] >= 0.50 else "Not triggered"
     html = (
         '<div class="vg-advisory">'
         '<div class="vg-a-label">System Note</div>'
@@ -781,7 +781,7 @@ def _stage_runs(state: dict) -> list[bool]:
         True,
         state["voice_risk"] <= 0.80,
         True,
-        state["agent_susp"] > 0.60,
+        state["agent_susp"] >= 0.50,
         True,
     ]
 
@@ -814,14 +814,14 @@ def _stage_detail(idx: int, state: dict) -> tuple[str, str]:
             "alert sent",
         )
     if idx == 5:
-        if state["agent_susp"] > 0.60:
+        if state["agent_susp"] >= 0.50:
             return (
-                f"Agent suspicion {state['agent_susp']:0.2f} > 0.60, OTP challenge required.",
-                f"{state['agent_susp']:0.2f} > 0.60",
+                f"Agent suspicion {state['agent_susp']:0.2f} ≥ 0.50, OTP challenge required.",
+                f"{state['agent_susp']:0.2f} ≥ 0.50",
             )
         return (
-            f"Agent suspicion {state['agent_susp']:0.2f} ≤ 0.60, no extra check needed.",
-            f"{state['agent_susp']:0.2f} ≤ 0.60",
+            f"Agent suspicion {state['agent_susp']:0.2f} < 0.50, no extra check needed.",
+            f"{state['agent_susp']:0.2f} < 0.50",
         )
     return (
         "Logged session metrics and P&L impact.",
