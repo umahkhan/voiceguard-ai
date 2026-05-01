@@ -386,9 +386,16 @@ def inject_css() -> None:
         ".vg-advisory.flag-acc{border-left:4px solid #f59e0b;}"
         ".vg-advisory.block-acc{border-left:4px solid #f87171;}"
         f".vg-advisory .vg-a-label{{font-size:13px;font-weight:800;letter-spacing:1.3px;text-transform:uppercase;color:{NAVY};}}"
-        f".vg-advisory .vg-a-action{{background:#f1f5f9;border-radius:8px;padding:7px 11px;margin-top:4px;font-size:16px;font-weight:700;color:{INK};line-height:1.4;}}"
-        f".vg-advisory ul{{margin:4px 0 0 0;padding-left:18px;font-size:15px;color:{INK};line-height:1.5;}}"
-        ".vg-advisory li{margin-bottom:2px;}"
+        # Recommended action — colored per verdict
+        ".vg-advisory.pass-acc .vg-a-action{background:#dcfce7;color:#14532d;border:1.5px solid #4ade80;font-weight:800;font-size:17px;border-radius:8px;padding:9px 13px;margin-top:4px;line-height:1.4;}"
+        ".vg-advisory.flag-acc .vg-a-action{background:#fef3c7;color:#78350f;border:1.5px solid #f59e0b;font-weight:800;font-size:17px;border-radius:8px;padding:9px 13px;margin-top:4px;line-height:1.4;}"
+        ".vg-advisory.block-acc .vg-a-action{background:#fee2e2;color:#7f1d1d;border:1.5px solid #f87171;font-weight:800;font-size:17px;border-radius:8px;padding:9px 13px;margin-top:4px;line-height:1.4;}"
+        # OK to Do items — bold card chips
+        f".vg-advisory .vg-ok-item{{display:flex;align-items:flex-start;gap:9px;background:#f8fafc;border:1px solid {BORDER};border-radius:8px;padding:8px 11px;margin-top:5px;font-size:15px;font-weight:700;color:{INK};line-height:1.4;}}"
+        ".vg-advisory .vg-ok-icon{flex-shrink:0;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:900;margin-top:1px;}"
+        ".vg-advisory.pass-acc .vg-ok-icon{background:#dcfce7;color:#16a34a;}"
+        ".vg-advisory.flag-acc .vg-ok-icon{background:#fef3c7;color:#d97706;}"
+        ".vg-advisory.block-acc .vg-ok-icon{background:#fee2e2;color:#dc2626;}"
         f".vg-advisory .vg-a-narrative{{font-size:15px;color:{INK};line-height:1.5;margin-top:5px;font-weight:500;}}"
         ".vg-advisory .vg-a-pills{margin-top:6px;display:flex;gap:6px;flex-wrap:wrap;}"
         f".vg-advisory .vg-pill{{background:#f1f5f9;border-radius:999px;padding:3px 9px;font-size:13px;font-weight:700;color:{INK};letter-spacing:0.3px;}}"
@@ -550,13 +557,20 @@ def render_metric(label: str, score: float, description: str) -> None:
 
 def render_advisory_left(state: dict) -> None:
     klass = {"PASS": "pass-acc", "FLAG": "flag-acc", "BLOCK": "block-acc"}[state["verdict"]]
-    bullets = "".join(f'<li>{a}</li>' for a in state["ok_actions"])
+    icon = {"PASS": "✓", "FLAG": "!", "BLOCK": "✓"}[state["verdict"]]
+    ok_items = "".join(
+        f'<div class="vg-ok-item">'
+        f'<span class="vg-ok-icon">{icon}</span>'
+        f'<span>{a}</span>'
+        f'</div>'
+        for a in state["ok_actions"]
+    )
     html = (
         f'<div class="vg-advisory {klass}">'
         '<div class="vg-a-label">Recommended Action</div>'
         f'<div class="vg-a-action">{_action_for(state["verdict"])}</div>'
         '<div class="vg-a-label" style="margin-top:9px;">OK to Do</div>'
-        f'<ul>{bullets}</ul>'
+        f'{ok_items}'
         '</div>'
     )
     st.markdown(html, unsafe_allow_html=True)
