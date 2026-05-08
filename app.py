@@ -51,60 +51,76 @@ HIGH_FG, HIGH_BG = "#c81e1e", "#fee2e2"
 
 
 # ---------------------------------------------------------------------------
-# Scenarios — all numeric data hardcoded. Audio paths point at files
-# already rendered into ./audio (ElevenLabs MP3s for clean / borderline,
-# macOS `say` WAV for the synthetic-voice scenarios).
+# Scenarios — fraud-attack typology. Each entry includes the caller context
+# a human reviewer would see in production (claimed identity, transaction in
+# flight, prior call history). Scripted spectral/prosody/conf values are
+# overridden by real model output when Live Mode is on.
 # ---------------------------------------------------------------------------
 SCENARIOS: dict[str, dict] = {
-    "Clean Caller": {
-        "spectral": 0.12, "prosody": 0.18, "behavior": 0.14, "conf": 0.15,
+    "Voice Clone Attempt — Female Caller": {
+        "spectral": 0.55, "prosody": 0.40, "behavior": 0.62, "conf": 0.62,
         "audio": "clean.mp3",
-        "loss_avoidance": 0,
+        "caller_id":      "+1 415-555-0144",
+        "claimed_name":   "Sarah Chen",
+        "account_suffix": "8421",
+        "txn_type":       "Wire transfer",
+        "txn_amount":     27500,
+        "txn_destination":"new external beneficiary (first time)",
+        "prior_calls_30d": 0,
+        "ivr_path":       "Direct-to-agent (skipped self-service)",
+        "loss_avoidance": 27500,
         "narrative": (
-            "Caller's voice biometrics, prosody, and IVR navigation pattern "
-            "all sit well within the normal baseline. Stress markers and "
-            "breath sounds match a human speaker."
+            "Caller claims to be account holder. Voice sounds natural but "
+            "does NOT match the enrolled voiceprint. Most likely a "
+            "synthetic clone of a different speaker, or a real impersonator. "
+            "High-value wire request to a new beneficiary raises the "
+            "transaction risk."
         ),
-        "ok_actions": [
-            "Handle balance, transaction, and routine questions normally.",
-            "Process customer requested changes using the standard call script.",
-            "Close the call with the usual wrap up and CRM note.",
-        ],
+        "expected": "FLAG",
     },
-    "Borderline Suspicious": {
-        "spectral": 0.55, "prosody": 0.62, "behavior": 0.49, "conf": 0.59,
+    "Voice Clone Attempt — Male Caller": {
+        "spectral": 0.55, "prosody": 0.40, "behavior": 0.58, "conf": 0.62,
         "audio": "borderline.mp3",
-        "loss_avoidance": 18000,
+        "caller_id":      "+1 646-555-0177",
+        "claimed_name":   "Marcus Reilly",
+        "account_suffix": "3309",
+        "txn_type":       "Add payee + transfer",
+        "txn_amount":     12800,
+        "txn_destination":"newly-added Zelle recipient",
+        "prior_calls_30d": 1,
+        "ivr_path":       "Selected 'lost card' before pivoting to transfers",
+        "loss_avoidance": 12800,
         "narrative": (
-            "Mixed signals. Some prosody markers look rehearsed but voice "
-            "biometrics are within range. IVR navigation is hesitant rather "
-            "than bot-like. Treat as elevated risk pending verification."
+            "Caller's voice does not match the enrolled voiceprint for "
+            "this account. IVR pattern is unusual — pivoted from card "
+            "support to a transfer request mid-call, a known social-"
+            "engineering pretext."
         ),
-        "ok_actions": [
-            "Ask the caller to read back the one-time code. Do not read it to them.",
-            "Talk about public info such as branch hours or general products.",
-            "Continue with the original request only after you confirm identity.",
-        ],
+        "expected": "FLAG",
     },
-    "Synthetic Bot — High Confidence": {
+    "Robocall Bot (Crude Synthesizer)": {
         "spectral": 0.94, "prosody": 0.91, "behavior": 0.89, "conf": 0.94,
         "audio": "ai_voice.wav",
+        "caller_id":      "+1 800-555-0123",
+        "claimed_name":   "Daniel Park",
+        "account_suffix": "5562",
+        "txn_type":       "Account verification request",
+        "txn_amount":     0,
+        "txn_destination":"—",
+        "prior_calls_30d": 4,
+        "ivr_path":       "Sub-second key presses, no human pauses",
         "loss_avoidance": 87000,
         "narrative": (
-            "All three indicators flag clear synthesis. Spectral, prosody, "
-            "and navigation patterns match high-confidence bot signatures "
-            "from recent fraud rings. Recommend immediate hand off to Fraud "
-            "Recovery."
+            "Audio is unmistakably synthesized. Robotic prosody, no breath "
+            "sounds, machine-cadenced IVR navigation. Pattern matches "
+            "credential-harvesting bot rings observed across the network "
+            "in the last 30 days."
         ),
-        "ok_actions": [
-            "Put the caller on hold and transfer to Fraud Recovery (extension 4400).",
-            "Tell the caller only that another team is reviewing the call.",
-            "Note the case ID in the customer record before ending the call.",
-        ],
+        "expected": "BLOCK",
     },
 }
 
-CALL_DURATION_S = 20.0
+CALL_DURATION_S = 5.0  # short, real-time-feel analysis window
 
 
 # ---------------------------------------------------------------------------
@@ -164,7 +180,7 @@ def _speaker_similarity(reference_path: str, test_path: str) -> float:
     return float(_sim(reference_path, test_path))
 
 
-REGISTERED_SCENARIO = "Registered Customer Calling"
+REGISTERED_SCENARIO = "Authenticated Customer (Your Voice)"
 
 
 def _scenario_names() -> list[str]:
@@ -183,13 +199,21 @@ def _scenario_data(name: str) -> dict:
         return {
             "spectral": 0.05, "prosody": 0.05, "behavior": 0.10, "conf": 0.10,
             "audio": None,  # path comes from registered_voice_path
+            "caller_id":      "+1 212-555-0199",
+            "claimed_name":   "Registered Customer",
+            "account_suffix": "0042",
+            "txn_type":       "Balance inquiry · routine transfer",
+            "txn_amount":     1850,
+            "txn_destination":"existing internal account",
+            "prior_calls_30d": 6,
+            "ivr_path":       "Self-service first, then agent (typical pattern)",
             "loss_avoidance": 0,
             "narrative": (
-                "Caller's voiceprint matches the enrolled customer baseline "
-                "and no synthesis artifacts were detected. Voice biometrics "
-                "and spoof detection both clear. Treat as authenticated."
+                "Voiceprint matches the enrolled customer baseline within "
+                "expected tolerance. No synthesis artifacts. Caller's IVR "
+                "navigation matches their historical pattern. Authenticated."
             ),
-            "ok_actions": SCENARIOS["Clean Caller"]["ok_actions"],
+            "expected": "PASS",
         }
     return SCENARIOS[name]
 
@@ -285,8 +309,14 @@ def current_state() -> dict:
         "conf":           conf,
         "verdict":        verdict,
         "speaker_similarity": similarity,
-        "caller_id":      st.session_state.get("caller_id", "+1 212-555-0199"),
-        "ok_actions":     sc["ok_actions"],
+        "caller_id":      sc.get("caller_id", st.session_state.get("caller_id", "+1 212-555-0199")),
+        "claimed_name":   sc.get("claimed_name", "Unknown"),
+        "account_suffix": sc.get("account_suffix", "0000"),
+        "txn_type":       sc.get("txn_type", "—"),
+        "txn_amount":     sc.get("txn_amount", 0),
+        "txn_destination":sc.get("txn_destination", "—"),
+        "prior_calls_30d":sc.get("prior_calls_30d", 0),
+        "ivr_path":       sc.get("ivr_path", "—"),
         "narrative":      sc["narrative"],
         "audio":          sc.get("audio"),
         "audio_path":     audio_path,
@@ -294,6 +324,7 @@ def current_state() -> dict:
         "live_mode":      live,
         "model_used":     model_used,
         "registered":     bool(registered_path),
+        "expected":       sc.get("expected", verdict),
     }
 
 
@@ -628,6 +659,43 @@ def inject_css() -> None:
         f".vg-meta .vg-meta-v{{font-size:22px;font-weight:700;color:{INK}!important;font-variant-numeric:tabular-nums;margin-top:4px;line-height:1.1;}}"
         f".vg-meta .vg-meta-s{{font-size:13px;color:{MUTED}!important;margin-top:3px;font-weight:500;}}"
 
+        # HITL action panel — appears when verdict is FLAG/BLOCK
+        f".vg-hitl{{background:{PAPER};border:1px solid {BORDER};border-radius:4px;padding:14px 16px;margin-top:8px;box-shadow:0 1px 4px rgba(0,0,0,0.08);}}"
+        ".vg-hitl.flag{border-left:4px solid #f59e0b;}"
+        ".vg-hitl.block{border-left:4px solid #ef4444;}"
+        ".vg-hitl.pass{border-left:4px solid #22c55e;}"
+        ".vg-hitl-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}"
+        f".vg-hitl-title{{font-size:13px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:{NAVY};}}"
+        ".vg-hitl-rec{font-size:12px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;padding:3px 10px;border-radius:3px;}"
+        ".vg-hitl-rec.flag{background:#fef3c7;color:#78350f;border:1px solid #f59e0b;}"
+        ".vg-hitl-rec.block{background:#fee2e2;color:#7f1d1d;border:1px solid #ef4444;}"
+        ".vg-hitl-rec.pass{background:#dcfce7;color:#14532d;border:1px solid #4ade80;}"
+        # Plain-language reasoning row
+        f".vg-hitl-reason{{font-size:14px;color:{INK};line-height:1.45;background:{CANVAS};border:1px solid {BORDER};border-radius:4px;padding:9px 12px;margin-bottom:8px;}}"
+
+        # Caller-context tile — key/value grid
+        f".vg-ctx{{background:{PAPER};border:1px solid {BORDER};border-radius:4px;padding:12px 14px;box-shadow:0 1px 2px rgba(0,0,0,0.04);}}"
+        f".vg-ctx-title{{font-size:11px;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;color:{MUTED};margin-bottom:6px;}}"
+        ".vg-ctx-row{display:flex;justify-content:space-between;align-items:baseline;padding:5px 0;border-bottom:1px solid #eef0f3;font-size:14px;}"
+        ".vg-ctx-row:last-child{border-bottom:none;}"
+        f".vg-ctx-k{{color:{MUTED};font-weight:500;}}"
+        f".vg-ctx-v{{color:{INK};font-weight:700;font-variant-numeric:tabular-nums;}}"
+        ".vg-ctx-v.high{color:#c81e1e;}"
+        ".vg-ctx-v.med{color:#b45309;}"
+
+        # Reviewer audit log
+        f".vg-log{{background:{PAPER};border:1px solid {BORDER};border-radius:4px;padding:10px 14px;max-height:140px;overflow-y:auto;}}"
+        f".vg-log-title{{font-size:11px;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;color:{MUTED};margin-bottom:6px;}}"
+        ".vg-log-row{display:flex;gap:8px;align-items:center;font-size:13px;padding:4px 0;border-bottom:1px solid #eef0f3;}"
+        ".vg-log-row:last-child{border-bottom:none;}"
+        f".vg-log-ts{{color:{MUTED};font-variant-numeric:tabular-nums;font-size:12px;}}"
+        ".vg-log-decision{font-weight:700;padding:1px 7px;border-radius:3px;font-size:11px;letter-spacing:0.5px;}"
+        ".vg-log-decision.approve{background:#dcfce7;color:#14532d;}"
+        ".vg-log-decision.stepup{background:#fef3c7;color:#78350f;}"
+        ".vg-log-decision.block{background:#fee2e2;color:#7f1d1d;}"
+        f".vg-log-name{{color:{INK};font-weight:600;}}"
+        f".vg-log-empty{{color:{MUTED};font-size:13px;font-style:italic;}}"
+
         "</style>"
     )
     st.markdown(css, unsafe_allow_html=True)
@@ -641,8 +709,8 @@ def render_header() -> None:
     html = (
         '<div class="vg-header">'
         '<div>'
-        '<div class="vg-h-title">VoiceGuard AI</div>'
-        '<div class="vg-h-sub">JPMorgan Chase Contact Center · Voice Fraud Defense</div>'
+        '<div class="vg-h-title">VoiceGuard AI · Fraud Operations Dashboard</div>'
+        '<div class="vg-h-sub">Real-time deepfake &amp; voice-clone detection · Human-in-the-loop reviewer console</div>'
         '</div>'
         f'<div class="vg-h-meta">Session #{session_label}</div>'
         '</div>'
@@ -709,50 +777,113 @@ def render_metric(label: str, score: float, description: str, inverted: bool = F
     st.markdown(html, unsafe_allow_html=True)
 
 
-def render_advisory_left(state: dict) -> None:
-    klass = {"PASS": "pass-acc", "FLAG": "flag-acc", "BLOCK": "block-acc"}[state["verdict"]]
-    icon = {"PASS": "✓", "FLAG": "!", "BLOCK": "✓"}[state["verdict"]]
-    ok_items = "".join(
-        f'<div class="vg-ok-item">'
-        f'<span class="vg-ok-icon">{icon}</span>'
-        f'<span>{a}</span>'
+def _plain_reason(state: dict) -> str:
+    """Plain-language one-liner explaining what the signals mean."""
+    sim = state.get("speaker_similarity")
+    deepfake = max(state.get("spectral", 0.0), state.get("prosody", 0.0))
+    verdict = state["verdict"]
+    parts: list[str] = []
+    if sim is not None:
+        if sim >= 0.40:
+            parts.append("voiceprint matches the enrolled customer")
+        elif sim >= 0.25:
+            parts.append("voiceprint is a borderline match")
+        else:
+            parts.append("voiceprint does NOT match the enrolled customer")
+    if deepfake >= 0.75:
+        parts.append("audio shows clear synthesis artifacts")
+    elif deepfake >= 0.40:
+        parts.append("some synthesis artifacts present")
+    else:
+        parts.append("no synthesis artifacts detected")
+    if state.get("behavior", 0) >= 0.75:
+        parts.append("IVR navigation looks bot-like")
+    summary = "; ".join(parts).capitalize() + "."
+    if verdict == "PASS":
+        return summary + " No action needed beyond standard call handling."
+    if verdict == "FLAG":
+        return summary + " Recommend step-up authentication before processing the request."
+    return summary + " Recommend immediate block and routing to Fraud Recovery."
+
+
+def caller_context_html(state: dict) -> str:
+    amount = state.get("txn_amount", 0)
+    amount_str = f"${amount:,}" if amount else "—"
+    risk_class = "high" if amount >= 25000 else ("med" if amount >= 5000 else "")
+    prior = int(state.get("prior_calls_30d", 0))
+    prior_class = "high" if prior == 0 else ""
+    rows = [
+        ("Claimed customer",  f"{state.get('claimed_name','—')} · ****{state.get('account_suffix','0000')}", ""),
+        ("Caller ID",         state.get("caller_id", "—"), ""),
+        ("Transaction",       f"{state.get('txn_type','—')}", ""),
+        ("Amount in flight",  amount_str, risk_class),
+        ("Destination",       state.get("txn_destination", "—"), ""),
+        ("Prior calls (30d)", f"{prior}", prior_class),
+        ("IVR path",          state.get("ivr_path", "—"), ""),
+    ]
+    rows_html = "".join(
+        f'<div class="vg-ctx-row">'
+        f'<span class="vg-ctx-k">{k}</span>'
+        f'<span class="vg-ctx-v {cls}">{v}</span>'
         f'</div>'
-        for a in state["ok_actions"]
+        for k, v, cls in rows
     )
-    html = (
-        f'<div class="vg-advisory {klass}">'
-        '<div class="vg-a-label">Recommended Action</div>'
-        f'<div class="vg-a-action">{_action_for(state["verdict"])}</div>'
-        '<div class="vg-a-label" style="margin-top:9px;">OK to Do</div>'
-        f'{ok_items}'
+    return (
+        '<div class="vg-ctx">'
+        '<div class="vg-ctx-title">Caller Context</div>'
+        f'{rows_html}'
         '</div>'
     )
-    st.markdown(html, unsafe_allow_html=True)
 
 
-def render_advisory_right(state: dict) -> None:
-    ivr = "Suspicious" if state["behavior"] >= 0.50 else "Normal"
-    otp = "Triggered" if state["agent_susp"] >= 0.50 else "Not triggered"
-    html = (
-        '<div class="vg-advisory">'
-        '<div class="vg-a-label">System Note</div>'
-        f'<div class="vg-a-narrative">{state["narrative"]}</div>'
-        '<div class="vg-a-pills">'
-        f'<span class="vg-pill"><span class="vg-pill-k">IVR Path:</span> {ivr}</span>'
-        f'<span class="vg-pill"><span class="vg-pill-k">OTP:</span> {otp}</span>'
+def hitl_header_html(state: dict) -> str:
+    verdict = state["verdict"]
+    rec = {"PASS": "Approve", "FLAG": "Step-Up Auth", "BLOCK": "Block & Escalate"}[verdict]
+    klass = verdict.lower()
+    return (
+        f'<div class="vg-hitl {klass}">'
+        '<div class="vg-hitl-head">'
+        '<div class="vg-hitl-title">Reviewer Action</div>'
+        f'<div class="vg-hitl-rec {klass}">Recommended: {rec}</div>'
         '</div>'
+        f'<div class="vg-hitl-reason">{_plain_reason(state)}</div>'
         '</div>'
     )
-    st.markdown(html, unsafe_allow_html=True)
+
+
+def audit_log_html() -> str:
+    decisions = st.session_state.get("reviewer_log", [])
+    if not decisions:
+        body = '<div class="vg-log-empty">No reviewer decisions in this session yet.</div>'
+    else:
+        rows = []
+        for d in reversed(decisions[-20:]):
+            cls = {"approve": "approve", "stepup": "stepup", "block": "block"}[d["decision"]]
+            label = {"approve": "APPROVED", "stepup": "STEP-UP", "block": "BLOCKED"}[d["decision"]]
+            rows.append(
+                '<div class="vg-log-row">'
+                f'<span class="vg-log-ts">{d["ts"]}</span>'
+                f'<span class="vg-log-decision {cls}">{label}</span>'
+                f'<span class="vg-log-name">{d["scenario"]}</span>'
+                '</div>'
+            )
+        body = "".join(rows)
+    return (
+        '<div class="vg-log">'
+        '<div class="vg-log-title">Reviewer Audit Log (this session)</div>'
+        f'{body}'
+        '</div>'
+    )
 
 
 # ---------------------------------------------------------------------------
 # Tab 1 — Live Simulation
 # ---------------------------------------------------------------------------
 def _render_complete_right(slot, state: dict) -> None:
-    """Fill the right-column slot with verdict + risk + advisory."""
+    """Render the right-side stack: verdict, signals, HITL panel + context."""
     with slot.container():
         render_verdict_bar(state["verdict"], state["conf"])
+
         sim = state.get("speaker_similarity")
         n_cols = 4 if sim is not None else 3
         cols = st.columns(n_cols)
@@ -761,32 +892,67 @@ def _render_complete_right(slot, state: dict) -> None:
             with cols[i]:
                 render_metric(
                     "Speaker Match", float(sim),
-                    "Cosine similarity to the enrolled customer voiceprint.",
+                    "Voiceprint similarity to enrolled customer.",
                     inverted=True,
                 )
             i += 1
         with cols[i]:
             render_metric(
                 "Voice Risk", state["voice_risk"],
-                "How synthetic or unusual the caller's voice sounded.",
+                "Synthesis artifacts in the audio.",
             )
         i += 1
         with cols[i]:
             render_metric(
                 "Agent Suspicion", state["agent_susp"],
-                "How suspicious the call looked to the agent layer.",
+                "Combined signal for the live agent.",
             )
         i += 1
         with cols[i]:
             render_metric(
                 "Behavior Risk", state["behavior"],
-                "How unusual the caller's path through the menu was.",
+                "IVR navigation pattern anomaly.",
             )
-        a1, a2 = st.columns(2)
-        with a1:
-            render_advisory_left(state)
-        with a2:
-            render_advisory_right(state)
+
+        st.markdown(hitl_header_html(state), unsafe_allow_html=True)
+
+        b1, b2, b3 = st.columns(3)
+        verdict = state["verdict"]
+        with b1:
+            approve = st.button(
+                "✓ Approve & Continue",
+                key=f"hitl_approve_{st.session_state.get('call_seq', 0)}",
+                disabled=(verdict == "BLOCK"),
+                use_container_width=True,
+            )
+        with b2:
+            stepup = st.button(
+                "⚠ Step-Up Auth",
+                key=f"hitl_stepup_{st.session_state.get('call_seq', 0)}",
+                use_container_width=True,
+            )
+        with b3:
+            block = st.button(
+                "✕ Block & Escalate",
+                key=f"hitl_block_{st.session_state.get('call_seq', 0)}",
+                use_container_width=True,
+            )
+        if approve or stepup or block:
+            decision = "approve" if approve else ("stepup" if stepup else "block")
+            st.session_state.setdefault("reviewer_log", []).append({
+                "ts":       time.strftime("%H:%M:%S"),
+                "scenario": state["name"],
+                "decision": decision,
+                "verdict":  verdict,
+            })
+            st.session_state["call_seq"] = st.session_state.get("call_seq", 0) + 1
+            st.rerun()
+
+        ctx_col, log_col = st.columns([6, 4])
+        with ctx_col:
+            st.markdown(caller_context_html(state), unsafe_allow_html=True)
+        with log_col:
+            st.markdown(audit_log_html(), unsafe_allow_html=True)
 
 
 def render_live_simulation() -> dict:
@@ -794,16 +960,14 @@ def render_live_simulation() -> dict:
 
     with left:
         incoming_slot = st.empty()
-        st.markdown("### Scenario Preset")
+        st.markdown("### Scenario")
         st.selectbox(
-            "Scenario Preset",
+            "Scenario",
             _scenario_names(),
             key="preset_choice",
             on_change=_reset_call,
             label_visibility="collapsed",
         )
-        st.markdown("### Caller Phone Number")
-        st.text_input("Caller ID", key="caller_id", disabled=True, label_visibility="collapsed")
         st.markdown("### Detection Mode")
         st.toggle(
             "Live Model (Wav2Vec2 + speaker verification)",
@@ -850,22 +1014,20 @@ def render_live_simulation() -> dict:
                 st.caption("Enrolled voiceprint loaded.")
         if st.session_state.get("live_mode_error"):
             st.caption(f"⚠ {st.session_state['live_mode_error']}")
-        st.markdown("### Start Call")
-        place_call = st.button("▶  Place Incoming Call", type="primary")
+        st.markdown("### Connect")
+        place_call = st.button("▶  Connect Incoming Call", type="primary")
         audio_slot = st.empty()
 
     with right:
         result_slot = st.empty()
 
-    # Bottom row — full width, animates as the call progresses.
+    # Full-width meta strip + pipeline path
     meta_slot = st.empty()
     path_slot = st.empty()
 
     state = current_state()
     call_state = st.session_state.get("call_state", "idle")
     if place_call:
-        # Switch to running for this script execution; the shared animation
-        # driver will mark call_state "complete" once the loop finishes.
         call_state = "running"
         st.session_state["call_state"] = "running"
 
@@ -892,6 +1054,14 @@ def render_live_simulation() -> dict:
     else:
         result_slot.markdown(placeholder_html(call_state), unsafe_allow_html=True)
 
+    # Stage-by-stage audit pinned beneath the dashboard, collapsible.
+    with st.expander("Stage-by-stage audit (technical detail)", expanded=False):
+        stage_slot = st.empty()
+        stage_slot.markdown(
+            stage_detail_html(state, call_state, progress),
+            unsafe_allow_html=True,
+        )
+
     return {
         "place_call":    place_call,
         "state":         state,
@@ -900,11 +1070,14 @@ def render_live_simulation() -> dict:
         "result_slot":   result_slot,
         "meta_slot":     meta_slot,
         "path_slot":     path_slot,
+        "stage_slot":    stage_slot,
     }
 
 
-def run_call_animation(sim: dict, audit: dict) -> None:
-    """Drive the running -> complete animation across both tabs."""
+def run_call_animation(sim: dict) -> None:
+    """Run a short, real-time-feel analysis animation. Audio autoplays in
+    parallel; signals populate after a brief 'analyzing' window so the
+    reviewer experiences the flow as a real call coming in."""
     state = sim["state"]
     audio_path = Path(state["audio_path"]) if state.get("audio_path") else None
     if audio_path and audio_path.exists():
@@ -933,9 +1106,7 @@ def run_call_animation(sim: dict, audit: dict) -> None:
         path = path_taken_html(state, "running", progress)
         sim["meta_slot"].markdown(meta, unsafe_allow_html=True)
         sim["path_slot"].markdown(path, unsafe_allow_html=True)
-        audit["meta_slot"].markdown(meta, unsafe_allow_html=True)
-        audit["path_slot"].markdown(path, unsafe_allow_html=True)
-        audit["stage_slot"].markdown(
+        sim["stage_slot"].markdown(
             stage_detail_html(state, "running", progress),
             unsafe_allow_html=True,
         )
@@ -948,9 +1119,7 @@ def run_call_animation(sim: dict, audit: dict) -> None:
     final_path = path_taken_html(state, "complete", 1.0)
     sim["meta_slot"].markdown(final_meta, unsafe_allow_html=True)
     sim["path_slot"].markdown(final_path, unsafe_allow_html=True)
-    audit["meta_slot"].markdown(final_meta, unsafe_allow_html=True)
-    audit["path_slot"].markdown(final_path, unsafe_allow_html=True)
-    audit["stage_slot"].markdown(
+    sim["stage_slot"].markdown(
         stage_detail_html(state, "complete", 1.0), unsafe_allow_html=True
     )
 
@@ -1064,37 +1233,12 @@ def stage_detail_html(state: dict, call_state: str, progress: float) -> str:
     )
 
 
-def render_call_risk_audit() -> dict:
-    state = current_state()
-    call_state = st.session_state.get("call_state", "idle")
-    progress = 1.0 if call_state == "complete" else 0.0
-
-    meta_slot = st.empty()
-    path_slot = st.empty()
-    stage_slot = st.empty()
-
-    meta_slot.markdown(
-        meta_strip_html(state, call_state, progress), unsafe_allow_html=True
-    )
-    path_slot.markdown(
-        path_taken_html(state, call_state, progress), unsafe_allow_html=True
-    )
-    stage_slot.markdown(
-        stage_detail_html(state, call_state, progress), unsafe_allow_html=True
-    )
-    return {
-        "meta_slot":  meta_slot,
-        "path_slot":  path_slot,
-        "stage_slot": stage_slot,
-    }
-
-
 # ---------------------------------------------------------------------------
 # Init + main
 # ---------------------------------------------------------------------------
 def init_session() -> None:
     ss = st.session_state
-    ss.setdefault("preset_choice",  "Clean Caller")
+    ss.setdefault("preset_choice",  next(iter(SCENARIOS.keys())))
     ss.setdefault("caller_id",      "+1 212-555-0199")
     ss.setdefault("timer_value",    0.0)
     ss.setdefault("call_state",     "idle")          # idle | running | complete
@@ -1104,11 +1248,13 @@ def init_session() -> None:
     ss.setdefault("live_mode",     False)
     ss.setdefault("live_mode_error", "")
     ss.setdefault("registered_voice_path", "")
+    ss.setdefault("reviewer_log",  [])
+    ss.setdefault("call_seq",      0)
 
 
 def main() -> None:
     st.set_page_config(
-        page_title="VoiceGuard AI",
+        page_title="VoiceGuard AI · Fraud Operations Dashboard",
         layout="wide",
         initial_sidebar_state="collapsed",
     )
@@ -1116,14 +1262,10 @@ def main() -> None:
     inject_css()
     render_header()
 
-    tab1, tab2 = st.tabs(["  Live Simulation  ", "  Call Risk Audit  "])
-    with tab1:
-        sim_slots = render_live_simulation()
-    with tab2:
-        audit_slots = render_call_risk_audit()
+    sim_slots = render_live_simulation()
 
     if sim_slots["place_call"]:
-        run_call_animation(sim_slots, audit_slots)
+        run_call_animation(sim_slots)
 
 
 if __name__ == "__main__":
