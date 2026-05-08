@@ -427,9 +427,7 @@ def meta_strip_html(state: dict, call_state: str, progress: float) -> str:
         audio_v      = "0.0s"
         audio_sub    = "no audio captured"
     if call_state == "complete" and state.get("live_mode"):
-        model_short = str(state.get("model_used", "")).split("/")[-1]
-        if model_short:
-            audio_sub = f"{audio_sub} · {model_short}"
+        audio_sub = f"{audio_sub} · live detection"
     return (
         '<div class="vg-meta-row">'
         '<div class="vg-meta">'
@@ -691,42 +689,42 @@ def inject_css() -> None:
         f".vg-meta .vg-meta-v{{font-size:22px;font-weight:700;color:{INK}!important;font-variant-numeric:tabular-nums;margin-top:4px;line-height:1.1;}}"
         f".vg-meta .vg-meta-s{{font-size:13px;color:{MUTED}!important;margin-top:3px;font-weight:500;}}"
 
-        # HITL action panel — appears when verdict is FLAG/BLOCK
-        f".vg-hitl{{background:{PAPER};border:1px solid {BORDER};border-radius:4px;padding:14px 16px;margin-top:8px;box-shadow:0 1px 4px rgba(0,0,0,0.08);}}"
-        ".vg-hitl.flag{border-left:4px solid #f59e0b;}"
-        ".vg-hitl.block{border-left:4px solid #ef4444;}"
-        ".vg-hitl.pass{border-left:4px solid #22c55e;}"
-        ".vg-hitl-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}"
-        f".vg-hitl-title{{font-size:13px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:{NAVY};}}"
-        ".vg-hitl-rec{font-size:12px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;padding:3px 10px;border-radius:3px;}"
-        ".vg-hitl-rec.flag{background:#fef3c7;color:#78350f;border:1px solid #f59e0b;}"
-        ".vg-hitl-rec.block{background:#fee2e2;color:#7f1d1d;border:1px solid #ef4444;}"
-        ".vg-hitl-rec.pass{background:#dcfce7;color:#14532d;border:1px solid #4ade80;}"
-        # Plain-language reasoning row
-        f".vg-hitl-reason{{font-size:14px;color:{INK};line-height:1.45;background:{CANVAS};border:1px solid {BORDER};border-radius:4px;padding:9px 12px;margin-bottom:8px;}}"
+        # HITL action panel — bigger and bolder for the demo
+        f".vg-hitl{{background:{PAPER};border:1px solid {BORDER};border-radius:6px;padding:18px 22px;margin-top:10px;box-shadow:0 2px 6px rgba(0,0,0,0.10);}}"
+        ".vg-hitl.flag{border-left:6px solid #f59e0b;}"
+        ".vg-hitl.block{border-left:6px solid #ef4444;}"
+        ".vg-hitl.pass{border-left:6px solid #22c55e;}"
+        ".vg-hitl-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;}"
+        f".vg-hitl-title{{font-size:16px;font-weight:900;letter-spacing:1.6px;text-transform:uppercase;color:{NAVY};}}"
+        ".vg-hitl-rec{font-size:14px;font-weight:800;letter-spacing:1.0px;text-transform:uppercase;padding:6px 14px;border-radius:4px;}"
+        ".vg-hitl-rec.flag{background:#fef3c7;color:#78350f;border:1.5px solid #f59e0b;}"
+        ".vg-hitl-rec.block{background:#fee2e2;color:#7f1d1d;border:1.5px solid #ef4444;}"
+        ".vg-hitl-rec.pass{background:#dcfce7;color:#14532d;border:1.5px solid #4ade80;}"
+        # Plain-language reasoning row — much more readable
+        f".vg-hitl-reason{{font-size:17px;font-weight:600;color:{INK};line-height:1.55;background:{CANVAS};border:1.5px solid {BORDER};border-radius:5px;padding:14px 16px;margin-bottom:10px;}}"
 
-        # Caller-context tile — key/value grid
-        f".vg-ctx{{background:{PAPER};border:1px solid {BORDER};border-radius:4px;padding:12px 14px;box-shadow:0 1px 2px rgba(0,0,0,0.04);}}"
-        f".vg-ctx-title{{font-size:11px;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;color:{MUTED};margin-bottom:6px;}}"
-        ".vg-ctx-row{display:flex;justify-content:space-between;align-items:baseline;padding:5px 0;border-bottom:1px solid #eef0f3;font-size:14px;}"
+        # Caller-context tile — bigger type, more breathing room
+        f".vg-ctx{{background:{PAPER};border:1px solid {BORDER};border-radius:6px;padding:16px 20px;box-shadow:0 1px 3px rgba(0,0,0,0.06);}}"
+        f".vg-ctx-title{{font-size:14px;font-weight:900;letter-spacing:1.6px;text-transform:uppercase;color:{NAVY};margin-bottom:10px;}}"
+        ".vg-ctx-row{display:flex;justify-content:space-between;align-items:baseline;padding:8px 0;border-bottom:1px solid #eef0f3;font-size:16px;}"
         ".vg-ctx-row:last-child{border-bottom:none;}"
-        f".vg-ctx-k{{color:{MUTED};font-weight:500;}}"
-        f".vg-ctx-v{{color:{INK};font-weight:700;font-variant-numeric:tabular-nums;}}"
+        f".vg-ctx-k{{color:{MUTED};font-weight:600;}}"
+        f".vg-ctx-v{{color:{INK};font-weight:800;font-variant-numeric:tabular-nums;}}"
         ".vg-ctx-v.high{color:#c81e1e;}"
         ".vg-ctx-v.med{color:#b45309;}"
 
-        # Reviewer audit log
-        f".vg-log{{background:{PAPER};border:1px solid {BORDER};border-radius:4px;padding:10px 14px;max-height:140px;overflow-y:auto;}}"
-        f".vg-log-title{{font-size:11px;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;color:{MUTED};margin-bottom:6px;}}"
-        ".vg-log-row{display:flex;gap:8px;align-items:center;font-size:13px;padding:4px 0;border-bottom:1px solid #eef0f3;}"
+        # Reviewer audit log — readable at presentation distance
+        f".vg-log{{background:{PAPER};border:1px solid {BORDER};border-radius:6px;padding:14px 18px;max-height:180px;overflow-y:auto;box-shadow:0 1px 3px rgba(0,0,0,0.06);}}"
+        f".vg-log-title{{font-size:14px;font-weight:900;letter-spacing:1.6px;text-transform:uppercase;color:{NAVY};margin-bottom:10px;}}"
+        ".vg-log-row{display:flex;gap:10px;align-items:center;font-size:15px;padding:7px 0;border-bottom:1px solid #eef0f3;}"
         ".vg-log-row:last-child{border-bottom:none;}"
-        f".vg-log-ts{{color:{MUTED};font-variant-numeric:tabular-nums;font-size:12px;}}"
-        ".vg-log-decision{font-weight:700;padding:1px 7px;border-radius:3px;font-size:11px;letter-spacing:0.5px;}"
+        f".vg-log-ts{{color:{MUTED};font-variant-numeric:tabular-nums;font-size:13px;font-weight:600;}}"
+        ".vg-log-decision{font-weight:800;padding:3px 10px;border-radius:3px;font-size:12px;letter-spacing:0.7px;}"
         ".vg-log-decision.approve{background:#dcfce7;color:#14532d;}"
         ".vg-log-decision.stepup{background:#fef3c7;color:#78350f;}"
         ".vg-log-decision.block{background:#fee2e2;color:#7f1d1d;}"
-        f".vg-log-name{{color:{INK};font-weight:600;}}"
-        f".vg-log-empty{{color:{MUTED};font-size:13px;font-style:italic;}}"
+        f".vg-log-name{{color:{INK};font-weight:700;}}"
+        f".vg-log-empty{{color:{MUTED};font-size:15px;font-style:italic;padding:6px 0;}}"
 
         "</style>"
     )
@@ -1134,16 +1132,16 @@ def render_live_simulation() -> dict:
         )
         st.markdown("### Detection Mode")
         st.toggle(
-            "Live Model (Wav2Vec2 + speaker verification)",
+            "Live Detection",
             key="live_mode",
             on_change=_reset_call,
             help=(
                 "Off: scripted scenario scores (instant, used for the "
-                "walkthrough). On: runs a real Wav2Vec2 deepfake "
-                "classifier + F0 prosody analysis on the scenario "
-                "audio. If a registered voice is uploaded, also "
-                "computes speaker similarity. First run takes "
-                "~10–20s to load the models."
+                "walkthrough). On: runs real-time synthesis detection "
+                "on the call audio. If a registered customer voice is "
+                "also uploaded, the system additionally compares the "
+                "caller's voiceprint to the enrolled baseline. First "
+                "run takes ~10–20s to warm up."
             ),
         )
         if st.session_state.get("live_mode"):
@@ -1296,14 +1294,6 @@ def render_live_simulation() -> dict:
     else:
         result_slot.markdown(placeholder_html(call_state), unsafe_allow_html=True)
 
-    # Stage-by-stage audit pinned beneath the dashboard, collapsible.
-    with st.expander("Stage-by-stage audit (technical detail)", expanded=False):
-        stage_slot = st.empty()
-        stage_slot.markdown(
-            stage_detail_html(state, call_state, progress),
-            unsafe_allow_html=True,
-        )
-
     return {
         "place_call":    place_call,
         "state":         state,
@@ -1312,14 +1302,38 @@ def render_live_simulation() -> dict:
         "result_slot":   result_slot,
         "meta_slot":     meta_slot,
         "path_slot":     path_slot,
-        "stage_slot":    stage_slot,
     }
 
 
-def run_call_animation(sim: dict) -> None:
-    """Run a short, real-time-feel analysis animation. Audio autoplays in
-    parallel; signals populate after a brief 'analyzing' window so the
-    reviewer experiences the flow as a real call coming in."""
+def render_stage_audit() -> dict:
+    """Tab 2 — stage-by-stage technical audit. Shares slot pattern with the
+    main dashboard so animation updates can target both tabs."""
+    state = current_state()
+    call_state = st.session_state.get("call_state", "idle")
+    progress = 1.0 if call_state == "complete" else 0.0
+    meta_slot = st.empty()
+    path_slot = st.empty()
+    stage_slot = st.empty()
+    meta_slot.markdown(
+        meta_strip_html(state, call_state, progress), unsafe_allow_html=True
+    )
+    path_slot.markdown(
+        path_taken_html(state, call_state, progress), unsafe_allow_html=True
+    )
+    stage_slot.markdown(
+        stage_detail_html(state, call_state, progress), unsafe_allow_html=True
+    )
+    return {
+        "meta_slot":  meta_slot,
+        "path_slot":  path_slot,
+        "stage_slot": stage_slot,
+    }
+
+
+def run_call_animation(sim: dict, audit: dict) -> None:
+    """Run the real-time-feel analysis animation. Audio autoplays in
+    parallel; signals populate progressively in the dashboard tab while
+    the audit tab fills in stage detail in lockstep."""
     state = sim["state"]
     audio_path = Path(state["audio_path"]) if state.get("audio_path") else None
     if audio_path and audio_path.exists():
@@ -1334,9 +1348,6 @@ def run_call_animation(sim: dict) -> None:
         "ts":        time.time(),
     })
 
-    # Reveal milestones: which signals are visible at each tick during the
-    # animation. Mimics streaming inference — speaker match settles fastest,
-    # synthesis detection a moment later, behavior signals last.
     reveal_at = {
         0:  0,  # placeholders
         10: 1,  # Speaker Match
@@ -1360,7 +1371,9 @@ def run_call_animation(sim: dict) -> None:
         path = path_taken_html(state, "running", progress)
         sim["meta_slot"].markdown(meta, unsafe_allow_html=True)
         sim["path_slot"].markdown(path, unsafe_allow_html=True)
-        sim["stage_slot"].markdown(
+        audit["meta_slot"].markdown(meta, unsafe_allow_html=True)
+        audit["path_slot"].markdown(path, unsafe_allow_html=True)
+        audit["stage_slot"].markdown(
             stage_detail_html(state, "running", progress),
             unsafe_allow_html=True,
         )
@@ -1376,7 +1389,9 @@ def run_call_animation(sim: dict) -> None:
     final_path = path_taken_html(state, "complete", 1.0)
     sim["meta_slot"].markdown(final_meta, unsafe_allow_html=True)
     sim["path_slot"].markdown(final_path, unsafe_allow_html=True)
-    sim["stage_slot"].markdown(
+    audit["meta_slot"].markdown(final_meta, unsafe_allow_html=True)
+    audit["path_slot"].markdown(final_path, unsafe_allow_html=True)
+    audit["stage_slot"].markdown(
         stage_detail_html(state, "complete", 1.0), unsafe_allow_html=True
     )
 
@@ -1520,10 +1535,17 @@ def main() -> None:
     inject_css()
     render_header()
 
-    sim_slots = render_live_simulation()
+    tab_dashboard, tab_audit = st.tabs([
+        "  Live Dashboard  ",
+        "  Stage-by-Stage Audit  ",
+    ])
+    with tab_dashboard:
+        sim_slots = render_live_simulation()
+    with tab_audit:
+        audit_slots = render_stage_audit()
 
     if sim_slots["place_call"]:
-        run_call_animation(sim_slots)
+        run_call_animation(sim_slots, audit_slots)
 
 
 if __name__ == "__main__":
