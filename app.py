@@ -287,9 +287,11 @@ def current_state() -> dict:
     is computed and the verdict is recalculated using combined-signal
     logic (deepfake score OR speaker mismatch can trigger).
     """
-    name = st.session_state.get("preset_choice", "Clean Caller")
-    if name not in (*SCENARIOS.keys(), REGISTERED_SCENARIO):
-        name = "Clean Caller"
+    valid_names = (*SCENARIOS.keys(), REGISTERED_SCENARIO, LIVE_MIC_SCENARIO)
+    name = st.session_state.get("preset_choice", "")
+    if name not in valid_names:
+        name = next(iter(SCENARIOS.keys()))
+        st.session_state["preset_choice"] = name
     sc = _scenario_data(name)
     live = bool(st.session_state.get("live_mode", False))
     registered_path = st.session_state.get("registered_voice_path") or None
@@ -906,6 +908,138 @@ def audit_log_html() -> str:
 # ---------------------------------------------------------------------------
 # Tab 1 — Live Simulation
 # ---------------------------------------------------------------------------
+def _render_pending_metric(label: str, hint: str = "Analyzing…") -> None:
+    """Skeleton tile shown for a signal that hasn't streamed in yet."""
+    html = (
+        '<div class="vg-metric" style="opacity:0.65;">'
+        f'<div class="vg-m-label">{label}</div>'
+        '<div style="display:flex;align-items:baseline;gap:8px;margin-top:3px;">'
+        f'<div class="vg-m-value" style="color:{MUTED};">—</div>'
+        '<span class="vg-badge" style="background:#e5e7eb;color:#6b7280;">PENDING</span>'
+        '</div>'
+        f'<div class="vg-m-desc">{hint}</div>'
+        '<div class="vg-m-bar"><span style="width:0%;"></span></div>'
+        '</div>'
+    )
+    st.markdown(html, unsafe_allow_html=True)
+
+
+def _render_analyzing_verdict_bar() -> None:
+    html = (
+        '<div class="vg-verdict" style="background:#1f2937;color:#fff;border-left:5px solid #6b7280;">'
+        '<div>'
+        '<div class="vg-v-label">VoiceGuard Verdict</div>'
+        '<div class="vg-v-text">ANALYZING</div>'
+        '<div class="vg-v-sub">Signals streaming in…</div>'
+        '</div>'
+        '<div>'
+        '<div class="vg-v-conf-label">AI Confidence</div>'
+        '<div class="vg-v-conf">…</div>'
+        '</div>'
+        '</div>'
+    )
+    st.markdown(html, unsafe_allow_html=True)
+
+
+def _render_streaming_right(slot, state: dict, stage: int) -> None:
+    """Render the right column at a partial reveal level.
+
+    stage = 0  → all placeholders (Analyzing)
+    stage = 1  → Speaker Match revealed
+    stage = 2  → + Voice Risk
+    stage = 3  → + Agent Suspicion + Behavior Risk
+    stage = 4  → + Verdict bar (replaces the analyzing placeholder)
+    stage = 5  → + HITL panel + Caller Context (final)
+    """
+    sim = state.get("speaker_similarity")
+    n_cols = 4 if sim is not None else 3
+    with slot.container():
+        if stage >= 4:
+            render_verdict_bar(state["verdict"], state["conf"])
+        else:
+            _render_analyzing_verdict_bar()
+
+        cols = st.columns(n_cols)
+        i = 0
+        if sim is not None:
+            with cols[i]:
+                if stage >= 1:
+                    render_metric(
+                        "Speaker Match", float(sim),
+                        "Voiceprint similarity to enrolled customer.",
+                        inverted=True,
+                    )
+                else:
+                    _render_pending_metric("Speaker Match", "Comparing voiceprint…")
+            i += 1
+        with cols[i]:
+            if stage >= 2:
+                render_metric(
+                    "Voice Risk", state["voice_risk"],
+                    "Synthesis artifacts in the audio.",
+                )
+            else:
+                _render_pending_metric("Voice Risk", "Detecting synthesis…")
+        i += 1
+        with cols[i]:
+            if stage >= 3:
+                render_metric(
+                    "Agent Suspicion", state["agent_susp"],
+                    "Combined signal for the live agent.",
+                )
+            else:
+                _render_pending_metric("Agent Suspicion")
+        i += 1
+        with cols[i]:
+            if stage >= 3:
+                render_metric(
+                    "Behavior Risk", state["behavior"],
+                    "IVR navigation pattern anomaly.",
+                )
+            else:
+                _render_pending_metric("Behavior Risk")
+
+        if stage >= 5:
+            st.markdown(hitl_header_html(state), unsafe_allow_html=True)
+            b1, b2, b3 = st.columns(3)
+            verdict = state["verdict"]
+            with b1:
+                approve = st.button(
+                    "✓ Approve & Continue",
+                    key=f"hitl_approve_{st.session_state.get('call_seq', 0)}",
+                    disabled=(verdict == "BLOCK"),
+                    use_container_width=True,
+                )
+            with b2:
+                stepup = st.button(
+                    "⚠ Step-Up Auth",
+                    key=f"hitl_stepup_{st.session_state.get('call_seq', 0)}",
+                    use_container_width=True,
+                )
+            with b3:
+                block = st.button(
+                    "✕ Block & Escalate",
+                    key=f"hitl_block_{st.session_state.get('call_seq', 0)}",
+                    use_container_width=True,
+                )
+            if approve or stepup or block:
+                decision = "approve" if approve else ("stepup" if stepup else "block")
+                st.session_state.setdefault("reviewer_log", []).append({
+                    "ts":       time.strftime("%H:%M:%S"),
+                    "scenario": state["name"],
+                    "decision": decision,
+                    "verdict":  verdict,
+                })
+                st.session_state["call_seq"] = st.session_state.get("call_seq", 0) + 1
+                st.rerun()
+
+            ctx_col, log_col = st.columns([6, 4])
+            with ctx_col:
+                st.markdown(caller_context_html(state), unsafe_allow_html=True)
+            with log_col:
+                st.markdown(audit_log_html(), unsafe_allow_html=True)
+
+
 def _render_complete_right(slot, state: dict) -> None:
     """Render the right-side stack: verdict, signals, HITL panel + context."""
     with slot.container():
@@ -1157,6 +1291,18 @@ def run_call_animation(sim: dict) -> None:
         "ts":        time.time(),
     })
 
+    # Reveal milestones: which signals are visible at each tick during the
+    # animation. Mimics streaming inference — speaker match settles fastest,
+    # synthesis detection a moment later, behavior signals last.
+    reveal_at = {
+        0:  0,  # placeholders
+        10: 1,  # Speaker Match
+        20: 2,  # + Voice Risk
+        30: 3,  # + Agent Suspicion / Behavior Risk
+        40: 4,  # + Verdict bar
+    }
+    current_stage = -1
+
     steps = int(CALL_DURATION_S * 10) + 1
     for i in range(steps):
         t = i / 10.0
@@ -1175,6 +1321,9 @@ def run_call_animation(sim: dict) -> None:
             stage_detail_html(state, "running", progress),
             unsafe_allow_html=True,
         )
+        if i in reveal_at and reveal_at[i] != current_stage:
+            current_stage = reveal_at[i]
+            _render_streaming_right(sim["result_slot"], state, current_stage)
         time.sleep(0.1)
 
     st.session_state["call_state"] = "complete"
