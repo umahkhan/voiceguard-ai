@@ -208,12 +208,12 @@ def _combined_verdict(
 ) -> tuple[str, float]:
     """Decision logic when real signals are available.
 
-    Calibration is anchored to Resemblyzer's empirical ranges: same speaker
-    typically 0.75–0.95, different speakers typically 0.40–0.55. We map
-    similarity → mismatch_risk:
+    Calibration is anchored to ECAPA-TDNN's empirical ranges on VoxCeleb:
+    same speaker typically 0.50–0.85, different speakers typically
+    -0.10–0.30. The model's own verification threshold sits around 0.25.
 
-      sim ≥ 0.70 → 0    (high-confidence match)
-      sim ≤ 0.50 → 0.65 (clear mismatch, lands in FLAG band)
+      sim ≥ 0.35 → 0    (high-confidence match)
+      sim ≤ 0.25 → 0.65 (clear mismatch, lands in FLAG band)
       between   → linear
 
     Deepfake score (spectral or prosody) operates independently — a clear
@@ -222,7 +222,7 @@ def _combined_verdict(
     if similarity is None:
         return _verdict(scripted_conf), scripted_conf
     deepfake = max(spectral, prosody)
-    mismatch_norm = max(0.0, min(1.0, (0.70 - similarity) / 0.20))
+    mismatch_norm = max(0.0, min(1.0, (0.35 - similarity) / 0.10))
     mismatch_risk = mismatch_norm * 0.65  # caps mismatch alone at FLAG, not BLOCK
     risk = max(deepfake, mismatch_risk)
     return _verdict(risk), risk

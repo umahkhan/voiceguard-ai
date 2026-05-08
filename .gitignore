@@ -24,3 +24,7 @@ env/
 .idea/
 .vscode/
 *.swp
+
+# Local pretrained model caches (downloaded on first run)
+detectors/_models/
+pretrained_models/

@@ -1,14 +1,16 @@
 """Speaker verification — does this audio match a known reference voice?
 
-Uses Resemblyzer's VoiceEncoder to produce 256-dim L2-normalized speaker
-embeddings, then compares them via cosine similarity. This is the
-load-bearing signal for "is this caller really our customer, or someone
-else (synthetic or otherwise)?" — independent of how good the synthesis
-is, because synthesis-of-someone-else has a different voiceprint.
+Uses SpeechBrain's ECAPA-TDNN model trained on VoxCeleb. ECAPA is the
+industry-standard architecture for speaker recognition and gives sharp
+separation between speakers — same-speaker comparisons typically land
+~0.50–0.85, different-speaker pairs ~-0.10–0.30 (cosine similarity on
+192-dim L2-normalized embeddings).
 
-Banks build these embeddings passively over a customer's first few calls
-("passive enrollment"). For the demo we accept a single uploaded
-reference clip and treat it as a pre-enrolled voiceprint.
+Earlier prototype used Resemblyzer (lighter, ~30 MB) but its
+discrimination was insufficient for cross-speaker comparisons,
+especially male/female where it returned ~0.55–0.65 for clearly
+different speakers. ECAPA-TDNN's larger training set and architecture
+push those down toward 0 cleanly.
 """
 
 from __future__ import annotations
@@ -18,21 +20,45 @@ from pathlib import Path
 
 import numpy as np
 
+_MODEL_SOURCE = "speechbrain/spkrec-ecapa-voxceleb"
+_MODEL_DIR = Path(__file__).parent / "_models" / "spkrec-ecapa-voxceleb"
+
+
+@functools.lru_cache(maxsize=1)
+def _load_verifier():
+    from speechbrain.inference.speaker import SpeakerRecognition
+    return SpeakerRecognition.from_hparams(
+        source=_MODEL_SOURCE,
+        savedir=str(_MODEL_DIR),
+        run_opts={"device": "cpu"},
+    )
+
 
 @functools.lru_cache(maxsize=1)
 def _load_encoder():
-    from resemblyzer import VoiceEncoder
-    return VoiceEncoder(device="cpu", verbose=False)
+    """Encoder for one-shot embedding extraction (used when we want the
+    embedding itself rather than a pairwise score)."""
+    from speechbrain.inference.speaker import EncoderClassifier
+    return EncoderClassifier.from_hparams(
+        source=_MODEL_SOURCE,
+        savedir=str(_MODEL_DIR),
+        run_opts={"device": "cpu"},
+    )
 
 
 @functools.lru_cache(maxsize=64)
 def _embed(audio_path: str) -> tuple[float, ...]:
-    """Embed an audio file. Returned as a tuple for lru_cache hashability."""
-    from resemblyzer import preprocess_wav
+    import librosa
+    import torch
 
     encoder = _load_encoder()
-    wav = preprocess_wav(Path(audio_path))
-    emb = encoder.embed_utterance(wav)
+    # ECAPA-TDNN expects 16 kHz mono. librosa handles MP3/WAV/M4A/FLAC
+    # uniformly without needing torchaudio's codec backend.
+    y, _ = librosa.load(audio_path, sr=16000, mono=True)
+    signal = torch.from_numpy(y).unsqueeze(0)
+    emb = encoder.encode_batch(signal).squeeze().detach().cpu().numpy()
+    n = float(np.linalg.norm(emb)) + 1e-9
+    emb = emb / n
     return tuple(float(x) for x in emb)
 
 
@@ -41,10 +67,10 @@ def embed(audio_path: str | Path) -> np.ndarray:
 
 
 def similarity(reference_path: str | Path, test_path: str | Path) -> float:
-    """Cosine similarity in [-1, 1]. Resemblyzer embeddings are L2-normalized,
-    so this is just the dot product. Same speaker typically lands 0.70–0.95;
-    different speakers typically 0.0–0.55.
-    """
+    """Cosine similarity in [-1, 1] between two voice clips. Same speaker
+    typically 0.50–0.85; different speakers typically -0.10–0.30."""
+    if str(reference_path) == str(test_path):
+        return 1.0
     a = embed(reference_path)
     b = embed(test_path)
     return float(np.dot(a, b))
