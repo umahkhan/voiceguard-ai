@@ -181,20 +181,25 @@ def _speaker_similarity(reference_path: str, test_path: str) -> float:
 
 
 REGISTERED_SCENARIO = "Authenticated Customer (Your Voice)"
+LIVE_MIC_SCENARIO   = "Live Microphone Input"
 
 
 def _scenario_names() -> list[str]:
-    """Available scenarios. The registered-customer entry only appears once
-    a reference voice has been uploaded."""
+    """Available scenarios. The registered-customer entry appears once a
+    reference voice has been uploaded; the live-mic entry appears whenever
+    Live Mode is on."""
     base = list(SCENARIOS.keys())
+    extras: list[str] = []
     if st.session_state.get("registered_voice_path"):
-        return [REGISTERED_SCENARIO] + base
-    return base
+        extras.append(REGISTERED_SCENARIO)
+    if st.session_state.get("live_mode"):
+        extras.append(LIVE_MIC_SCENARIO)
+    return extras + base
 
 
 def _scenario_data(name: str) -> dict:
     """Resolve a scenario name to its data dict. The registered-customer
-    scenario is synthesized at runtime from the uploaded voice file."""
+    and live-mic scenarios are synthesized at runtime."""
     if name == REGISTERED_SCENARIO:
         return {
             "spectral": 0.05, "prosody": 0.05, "behavior": 0.10, "conf": 0.10,
@@ -215,12 +220,34 @@ def _scenario_data(name: str) -> dict:
             ),
             "expected": "PASS",
         }
+    if name == LIVE_MIC_SCENARIO:
+        return {
+            "spectral": 0.30, "prosody": 0.30, "behavior": 0.30, "conf": 0.30,
+            "audio": None,  # path comes from live_mic_audio_path
+            "caller_id":      "Microphone (local capture)",
+            "claimed_name":   "Live Caller",
+            "account_suffix": "—",
+            "txn_type":       "Live recording — verdict from real-time analysis",
+            "txn_amount":     0,
+            "txn_destination":"—",
+            "prior_calls_30d": 0,
+            "ivr_path":       "Direct microphone input",
+            "loss_avoidance": 0,
+            "narrative": (
+                "Audio captured live from the operator's microphone. Speaker "
+                "match and synthesis-detection signals are computed against "
+                "the registered customer voiceprint and shown below."
+            ),
+            "expected": "—",
+        }
     return SCENARIOS[name]
 
 
 def _scenario_audio_path(name: str, sc: dict) -> str | None:
     if name == REGISTERED_SCENARIO:
         return st.session_state.get("registered_voice_path") or None
+    if name == LIVE_MIC_SCENARIO:
+        return st.session_state.get("live_mic_audio_path") or None
     return str(AUDIO_DIR / sc["audio"]) if sc.get("audio") else None
 
 
@@ -1014,8 +1041,46 @@ def render_live_simulation() -> dict:
                 st.caption("Enrolled voiceprint loaded.")
         if st.session_state.get("live_mode_error"):
             st.caption(f"⚠ {st.session_state['live_mode_error']}")
+
+        # Live mic capture — only meaningful when the live-mic scenario is selected
+        if st.session_state.get("preset_choice") == LIVE_MIC_SCENARIO:
+            st.markdown("### Live Microphone")
+            mic_audio = st.audio_input(
+                "Record caller audio",
+                key="live_mic_recorder",
+                label_visibility="collapsed",
+                help=(
+                    "Click to record live audio. The dashboard will run "
+                    "speaker verification + deepfake detection on whatever "
+                    "you record, against the enrolled voice."
+                ),
+            )
+            if mic_audio is not None:
+                content = mic_audio.getvalue()
+                h = hashlib.md5(content).hexdigest()[:12]
+                temp_path = Path(tempfile.gettempdir()) / f"voiceguard_mic_{h}.wav"
+                if not temp_path.exists():
+                    temp_path.write_bytes(content)
+                if st.session_state.get("live_mic_audio_path") != str(temp_path):
+                    st.session_state["live_mic_audio_path"] = str(temp_path)
+                    _reset_call()
+                st.caption(f"Recording captured · {len(content) / 1024:0.0f} KB")
+            elif st.session_state.get("live_mic_audio_path"):
+                # Streamlit clears the widget when the user re-records.
+                # Keep the previous capture available until a new one comes in.
+                st.caption("Previous recording loaded — record again to refresh.")
+
         st.markdown("### Connect")
-        place_call = st.button("▶  Connect Incoming Call", type="primary")
+        connect_disabled = (
+            st.session_state.get("preset_choice") == LIVE_MIC_SCENARIO
+            and not st.session_state.get("live_mic_audio_path")
+        )
+        place_call = st.button(
+            "▶  Connect Incoming Call",
+            type="primary",
+            disabled=connect_disabled,
+            help="Record audio first" if connect_disabled else None,
+        )
         audio_slot = st.empty()
 
     with right:
@@ -1248,6 +1313,7 @@ def init_session() -> None:
     ss.setdefault("live_mode",     False)
     ss.setdefault("live_mode_error", "")
     ss.setdefault("registered_voice_path", "")
+    ss.setdefault("live_mic_audio_path",   "")
     ss.setdefault("reviewer_log",  [])
     ss.setdefault("call_seq",      0)
 
