@@ -7,6 +7,8 @@ the app runs without any model calls.
 
 from __future__ import annotations
 
+import hashlib
+import tempfile
 import time
 from pathlib import Path
 
@@ -148,25 +150,150 @@ def _action_for(verdict: str) -> str:
     }[verdict]
 
 
+@st.cache_data(show_spinner=False)
+def _live_scores_for(audio_path: str) -> dict:
+    """Run the real deepfake detector on an audio path. Cached across reruns."""
+    from detectors import detect
+    return detect(audio_path, fp_tuned=True)
+
+
+@st.cache_data(show_spinner=False)
+def _speaker_similarity(reference_path: str, test_path: str) -> float:
+    """Cosine similarity between two voice clips, [-1, 1]. Cached."""
+    from detectors import speaker_similarity as _sim
+    return float(_sim(reference_path, test_path))
+
+
+REGISTERED_SCENARIO = "Registered Customer Calling"
+
+
+def _scenario_names() -> list[str]:
+    """Available scenarios. The registered-customer entry only appears once
+    a reference voice has been uploaded."""
+    base = list(SCENARIOS.keys())
+    if st.session_state.get("registered_voice_path"):
+        return [REGISTERED_SCENARIO] + base
+    return base
+
+
+def _scenario_data(name: str) -> dict:
+    """Resolve a scenario name to its data dict. The registered-customer
+    scenario is synthesized at runtime from the uploaded voice file."""
+    if name == REGISTERED_SCENARIO:
+        return {
+            "spectral": 0.05, "prosody": 0.05, "behavior": 0.10, "conf": 0.10,
+            "audio": None,  # path comes from registered_voice_path
+            "loss_avoidance": 0,
+            "narrative": (
+                "Caller's voiceprint matches the enrolled customer baseline "
+                "and no synthesis artifacts were detected. Voice biometrics "
+                "and spoof detection both clear. Treat as authenticated."
+            ),
+            "ok_actions": SCENARIOS["Clean Caller"]["ok_actions"],
+        }
+    return SCENARIOS[name]
+
+
+def _scenario_audio_path(name: str, sc: dict) -> str | None:
+    if name == REGISTERED_SCENARIO:
+        return st.session_state.get("registered_voice_path") or None
+    return str(AUDIO_DIR / sc["audio"]) if sc.get("audio") else None
+
+
+def _combined_verdict(
+    spectral: float,
+    prosody: float,
+    similarity: float | None,
+    scripted_conf: float,
+) -> tuple[str, float]:
+    """Decision logic when real signals are available.
+
+    Calibration is anchored to Resemblyzer's empirical ranges: same speaker
+    typically 0.75–0.95, different speakers typically 0.40–0.55. We map
+    similarity → mismatch_risk:
+
+      sim ≥ 0.70 → 0    (high-confidence match)
+      sim ≤ 0.50 → 0.65 (clear mismatch, lands in FLAG band)
+      between   → linear
+
+    Deepfake score (spectral or prosody) operates independently — a clear
+    synthesis pushes to BLOCK regardless of speaker match.
+    """
+    if similarity is None:
+        return _verdict(scripted_conf), scripted_conf
+    deepfake = max(spectral, prosody)
+    mismatch_norm = max(0.0, min(1.0, (0.70 - similarity) / 0.20))
+    mismatch_risk = mismatch_norm * 0.65  # caps mismatch alone at FLAG, not BLOCK
+    risk = max(deepfake, mismatch_risk)
+    return _verdict(risk), risk
+
+
 def current_state() -> dict:
-    """Compose the live scenario view from session state."""
+    """Compose the live scenario view from session state.
+
+    Live Mode replaces scripted spectral/prosody with real Wav2Vec2 + F0
+    output. When a registered voice is also uploaded, speaker similarity
+    is computed and the verdict is recalculated using combined-signal
+    logic (deepfake score OR speaker mismatch can trigger).
+    """
     name = st.session_state.get("preset_choice", "Clean Caller")
-    sc = SCENARIOS[name]
-    voice_risk = max(sc["spectral"], sc["prosody"])
+    if name not in (*SCENARIOS.keys(), REGISTERED_SCENARIO):
+        name = "Clean Caller"
+    sc = _scenario_data(name)
+    live = bool(st.session_state.get("live_mode", False))
+    registered_path = st.session_state.get("registered_voice_path") or None
+    audio_path = _scenario_audio_path(name, sc)
+
+    spectral = sc["spectral"]
+    prosody = sc["prosody"]
+    similarity: float | None = None
+    model_used = "Scripted scenario"
+    if live and audio_path:
+        try:
+            scores = _live_scores_for(audio_path)
+            spectral = scores["spectral_score"]
+            prosody = scores["prosody_score"]
+            model_used = scores["model_used"]
+        except Exception as exc:  # noqa: BLE001
+            st.session_state["live_mode_error"] = str(exc)
+            live = False
+
+    if live and registered_path and audio_path:
+        try:
+            if str(Path(audio_path).resolve()) == str(Path(registered_path).resolve()):
+                similarity = 1.0
+            else:
+                similarity = _speaker_similarity(registered_path, audio_path)
+        except Exception as exc:  # noqa: BLE001
+            st.session_state["live_mode_error"] = (
+                f"Speaker verification failed: {exc}"
+            )
+
+    if live and similarity is not None:
+        verdict, conf = _combined_verdict(spectral, prosody, similarity, sc["conf"])
+    else:
+        verdict, conf = _verdict(sc["conf"]), sc["conf"]
+
+    voice_risk = max(spectral, prosody)
     return {
         "name":           name,
-        "spectral":       sc["spectral"],
-        "prosody":        sc["prosody"],
+        "spectral":       spectral,
+        "prosody":        prosody,
         "behavior":       sc["behavior"],
         "voice_risk":     voice_risk,
         "agent_susp":     sc["conf"],
-        "conf":           sc["conf"],
-        "verdict":        _verdict(sc["conf"]),
+        "conf":           conf,
+        "verdict":        verdict,
+        "speaker_similarity": similarity,
         "caller_id":      st.session_state.get("caller_id", "+1 212-555-0199"),
         "ok_actions":     sc["ok_actions"],
         "narrative":      sc["narrative"],
-        "audio":          sc["audio"],
+        "audio":          sc.get("audio"),
+        "audio_path":     audio_path,
         "loss_avoidance": sc["loss_avoidance"],
+        "live_mode":      live,
+        "model_used":     model_used,
+        "registered":     bool(registered_path),
     }
 
 
@@ -236,6 +363,10 @@ def meta_strip_html(state: dict, call_state: str, progress: float) -> str:
         conf_sub     = "no call yet"
         audio_v      = "0.0s"
         audio_sub    = "no audio captured"
+    if call_state == "complete" and state.get("live_mode"):
+        model_short = str(state.get("model_used", "")).split("/")[-1]
+        if model_short:
+            audio_sub = f"{audio_sub} · {model_short}"
     return (
         '<div class="vg-meta-row">'
         '<div class="vg-meta">'
@@ -557,8 +688,11 @@ def render_verdict_bar(verdict: str, conf: float) -> None:
     st.markdown(html, unsafe_allow_html=True)
 
 
-def render_metric(label: str, score: float, description: str) -> None:
-    level = _level(score)
+def render_metric(label: str, score: float, description: str, inverted: bool = False) -> None:
+    """Render a metric tile. inverted=True means higher=better (e.g. speaker
+    match) — risk badging flips to LOW for high values."""
+    risk_score = (1.0 - score) if inverted else score
+    level = _level(risk_score)
     fg, _bg = _level_palette(level)
     pct = max(2, score * 100)
     html = (
@@ -619,18 +753,31 @@ def _render_complete_right(slot, state: dict) -> None:
     """Fill the right-column slot with verdict + risk + advisory."""
     with slot.container():
         render_verdict_bar(state["verdict"], state["conf"])
-        c1, c2, c3 = st.columns(3)
-        with c1:
+        sim = state.get("speaker_similarity")
+        n_cols = 4 if sim is not None else 3
+        cols = st.columns(n_cols)
+        i = 0
+        if sim is not None:
+            with cols[i]:
+                render_metric(
+                    "Speaker Match", float(sim),
+                    "Cosine similarity to the enrolled customer voiceprint.",
+                    inverted=True,
+                )
+            i += 1
+        with cols[i]:
             render_metric(
                 "Voice Risk", state["voice_risk"],
                 "How synthetic or unusual the caller's voice sounded.",
             )
-        with c2:
+        i += 1
+        with cols[i]:
             render_metric(
                 "Agent Suspicion", state["agent_susp"],
                 "How suspicious the call looked to the agent layer.",
             )
-        with c3:
+        i += 1
+        with cols[i]:
             render_metric(
                 "Behavior Risk", state["behavior"],
                 "How unusual the caller's path through the menu was.",
@@ -650,13 +797,59 @@ def render_live_simulation() -> dict:
         st.markdown("### Scenario Preset")
         st.selectbox(
             "Scenario Preset",
-            list(SCENARIOS.keys()),
+            _scenario_names(),
             key="preset_choice",
             on_change=_reset_call,
             label_visibility="collapsed",
         )
         st.markdown("### Caller Phone Number")
         st.text_input("Caller ID", key="caller_id", disabled=True, label_visibility="collapsed")
+        st.markdown("### Detection Mode")
+        st.toggle(
+            "Live Model (Wav2Vec2 + speaker verification)",
+            key="live_mode",
+            on_change=_reset_call,
+            help=(
+                "Off: scripted scenario scores (instant, used for the "
+                "walkthrough). On: runs a real Wav2Vec2 deepfake "
+                "classifier + F0 prosody analysis on the scenario "
+                "audio. If a registered voice is uploaded, also "
+                "computes speaker similarity. First run takes "
+                "~10–20s to load the models."
+            ),
+        )
+        if st.session_state.get("live_mode"):
+            st.markdown("### Registered Customer Voice")
+            uploaded = st.file_uploader(
+                "Registered Customer Voice",
+                type=["wav", "mp3", "m4a", "flac"],
+                key="registered_voice_uploader",
+                label_visibility="collapsed",
+                help=(
+                    "Upload a 5–10 second clip of the customer's real "
+                    "voice. Stands in for the passively-enrolled "
+                    "voiceprint a bank already has on file. "
+                    "Once uploaded, every call is compared against it."
+                ),
+            )
+            if uploaded is not None:
+                content = uploaded.read()
+                h = hashlib.md5(content).hexdigest()[:12]
+                suffix = Path(uploaded.name).suffix.lower() or ".wav"
+                temp_path = Path(tempfile.gettempdir()) / f"voiceguard_ref_{h}{suffix}"
+                if not temp_path.exists():
+                    temp_path.write_bytes(content)
+                if st.session_state.get("registered_voice_path") != str(temp_path):
+                    st.session_state["registered_voice_path"] = str(temp_path)
+                    _reset_call()
+                st.caption(
+                    f"Enrolled · {Path(uploaded.name).name} · "
+                    f"{len(content) / 1024:0.0f} KB"
+                )
+            elif st.session_state.get("registered_voice_path"):
+                st.caption("Enrolled voiceprint loaded.")
+        if st.session_state.get("live_mode_error"):
+            st.caption(f"⚠ {st.session_state['live_mode_error']}")
         st.markdown("### Start Call")
         place_call = st.button("▶  Place Incoming Call", type="primary")
         audio_slot = st.empty()
@@ -713,9 +906,9 @@ def render_live_simulation() -> dict:
 def run_call_animation(sim: dict, audit: dict) -> None:
     """Drive the running -> complete animation across both tabs."""
     state = sim["state"]
-    audio_path = AUDIO_DIR / state["audio"]
-    if audio_path.exists():
-        fmt = "audio/mp3" if audio_path.suffix == ".mp3" else "audio/wav"
+    audio_path = Path(state["audio_path"]) if state.get("audio_path") else None
+    if audio_path and audio_path.exists():
+        fmt = "audio/mp3" if audio_path.suffix.lower() == ".mp3" else "audio/wav"
         sim["audio_slot"].audio(str(audio_path), format=fmt, autoplay=True)
 
     st.session_state["session_calls"].append({
@@ -789,10 +982,13 @@ def _stage_runs(state: dict) -> list[bool]:
 def _stage_detail(idx: int, state: dict) -> tuple[str, str]:
     """Return (description, score_text) for stage idx (1..6)."""
     if idx == 1:
-        return (
-            "Captured voice biometrics from the call audio.",
-            f"spectral {state['spectral']:0.2f} · prosody {state['prosody']:0.2f}",
+        sim = state.get("speaker_similarity")
+        score = (
+            f"spectral {state['spectral']:0.2f} · prosody {state['prosody']:0.2f}"
         )
+        if sim is not None:
+            score = f"speaker {float(sim):0.2f} · {score}"
+        return ("Captured voice biometrics from the call audio.", score)
     if idx == 2:
         return (
             "Logged entry confidence at the start of the call.",
@@ -905,6 +1101,9 @@ def init_session() -> None:
     ss.setdefault("call_progress",  0.0)
     ss.setdefault("session_calls", [])
     ss.setdefault("session_id",     int(time.time()) % 100000)
+    ss.setdefault("live_mode",     False)
+    ss.setdefault("live_mode_error", "")
+    ss.setdefault("registered_voice_path", "")
 
 
 def main() -> None:

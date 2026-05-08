@@ -21,6 +21,11 @@ class VoiceGuardState(TypedDict, total=False):
     baseline_collected: bool
     spectral_score: float
     prosody_score: float
+    audio_path: str
+    live_mode: bool
+    model_used: str
+    registered_voice_path: str
+    speaker_similarity: float
 
     # Stage 2 — IVR Entry Agent (Defense 1)
     ivr_entry_confidence: float
