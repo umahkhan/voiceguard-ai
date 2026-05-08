@@ -358,10 +358,13 @@ def current_state() -> dict:
 
 
 def _reset_call() -> None:
-    """Reset to idle state — clears verdict, timer, and path progress."""
+    """Reset to idle state — clears verdict, timer, path progress, and the
+    reviewer audit log. Called whenever the scenario changes or a new voice
+    recording is captured so each fresh setup starts with a clean log."""
     st.session_state["call_state"] = "idle"
     st.session_state["timer_value"] = 0.0
     st.session_state["call_progress"] = 0.0
+    st.session_state["reviewer_log"] = []
 
 
 # Stage breakpoints over a 0-1 progress curve. Six equal slices of the call.
@@ -1145,34 +1148,74 @@ def render_live_simulation() -> dict:
         )
         if st.session_state.get("live_mode"):
             st.markdown("### Registered Customer Voice")
-            uploaded = st.file_uploader(
-                "Registered Customer Voice",
-                type=["wav", "mp3", "m4a", "flac"],
-                key="registered_voice_uploader",
+            method = st.radio(
+                "Enrollment method",
+                ["Record", "Upload file"],
+                key="enrollment_method",
+                horizontal=True,
                 label_visibility="collapsed",
                 help=(
-                    "Upload a 5–10 second clip of the customer's real "
-                    "voice. Stands in for the passively-enrolled "
-                    "voiceprint a bank already has on file. "
-                    "Once uploaded, every call is compared against it."
+                    "Recording with the browser mic gives the best "
+                    "live-call match because both clips use the same "
+                    "device and codec. Upload only if you want to "
+                    "enroll from an existing recording — but expect "
+                    "lower same-speaker scores when conditions differ."
                 ),
             )
-            if uploaded is not None:
-                content = uploaded.read()
-                h = hashlib.md5(content).hexdigest()[:12]
-                suffix = Path(uploaded.name).suffix.lower() or ".wav"
-                temp_path = Path(tempfile.gettempdir()) / f"voiceguard_ref_{h}{suffix}"
-                if not temp_path.exists():
-                    temp_path.write_bytes(content)
-                if st.session_state.get("registered_voice_path") != str(temp_path):
-                    st.session_state["registered_voice_path"] = str(temp_path)
-                    _reset_call()
-                st.caption(
-                    f"Enrolled · {Path(uploaded.name).name} · "
-                    f"{len(content) / 1024:0.0f} KB"
+            if method == "Record":
+                ref_audio = st.audio_input(
+                    "Record customer voice",
+                    key="registered_voice_recorder",
+                    label_visibility="collapsed",
+                    help=(
+                        "Speak continuously for 5–10 seconds. The "
+                        "browser captures audio with the same mic and "
+                        "codec the live-call scenario uses, so "
+                        "same-speaker similarity will be high."
+                    ),
                 )
-            elif st.session_state.get("registered_voice_path"):
-                st.caption("Enrolled voiceprint loaded.")
+                if ref_audio is not None:
+                    content = ref_audio.getvalue()
+                    h = hashlib.md5(content).hexdigest()[:12]
+                    temp_path = Path(tempfile.gettempdir()) / f"voiceguard_ref_{h}.wav"
+                    if not temp_path.exists():
+                        temp_path.write_bytes(content)
+                    if st.session_state.get("registered_voice_path") != str(temp_path):
+                        st.session_state["registered_voice_path"] = str(temp_path)
+                        _reset_call()
+                    st.caption(f"Enrolled (recorded) · {len(content) / 1024:0.0f} KB")
+                elif st.session_state.get("registered_voice_path"):
+                    st.caption("Enrolled voiceprint loaded.")
+            else:
+                uploaded = st.file_uploader(
+                    "Registered Customer Voice",
+                    type=["wav", "mp3", "m4a", "flac"],
+                    key="registered_voice_uploader",
+                    label_visibility="collapsed",
+                    help=(
+                        "Upload a 5–10 second clip. Note: if the upload "
+                        "uses a different mic/codec than the live call "
+                        "(e.g. Voice Memos m4a vs browser mic), "
+                        "same-speaker similarity may drop ~0.20 below "
+                        "what you'd see with matched conditions."
+                    ),
+                )
+                if uploaded is not None:
+                    content = uploaded.read()
+                    h = hashlib.md5(content).hexdigest()[:12]
+                    suffix = Path(uploaded.name).suffix.lower() or ".wav"
+                    temp_path = Path(tempfile.gettempdir()) / f"voiceguard_ref_{h}{suffix}"
+                    if not temp_path.exists():
+                        temp_path.write_bytes(content)
+                    if st.session_state.get("registered_voice_path") != str(temp_path):
+                        st.session_state["registered_voice_path"] = str(temp_path)
+                        _reset_call()
+                    st.caption(
+                        f"Enrolled (uploaded) · {Path(uploaded.name).name} · "
+                        f"{len(content) / 1024:0.0f} KB"
+                    )
+                elif st.session_state.get("registered_voice_path"):
+                    st.caption("Enrolled voiceprint loaded.")
         if st.session_state.get("live_mode_error"):
             st.caption(f"⚠ {st.session_state['live_mode_error']}")
 
