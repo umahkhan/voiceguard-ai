@@ -2141,6 +2141,55 @@ def render_business_case() -> None:
     )
 
 
+@st.cache_resource(show_spinner="Warming up ML models — this takes ~20 seconds the first time, then every call is instant…")
+def _warm_up_pipeline() -> bool:
+    """Pre-load both ML models and pre-compute scores for every scenario.
+
+    Without this, the first Connect Call eats a 15–25 second cold start
+    while Wav2Vec2 + ECAPA load and the first audio file is decoded
+    through librosa's audioread fallback (m4a is slow on Streamlit Cloud
+    because the bundled libsndfile lacks AAC). With this, the first
+    visitor pays the cold-start cost once at app load (with a clear
+    spinner), and every Connect Call after that is sub-second.
+
+    Cached via @st.cache_resource so it runs exactly once per app
+    container lifetime.
+    """
+    from detectors import detect, speaker_similarity
+
+    voiceprint = REGISTERED_VOICE_FILE
+    # Warm the speaker-verification model first (it's the lighter of the two)
+    if voiceprint.exists():
+        try:
+            speaker_similarity(str(voiceprint), str(voiceprint))
+        except Exception:
+            pass
+
+    # Warm the deepfake classifier + librosa F0
+    if voiceprint.exists():
+        try:
+            detect(str(voiceprint))
+        except Exception:
+            pass
+
+    # Pre-compute scores for every scenario so the first click is instant
+    for sc in SCENARIOS.values():
+        audio_filename = sc.get("audio")
+        if not audio_filename:
+            continue
+        audio_path = AUDIO_DIR / audio_filename
+        if not audio_path.exists():
+            continue
+        try:
+            detect(str(audio_path))
+            if voiceprint.exists():
+                speaker_similarity(str(voiceprint), str(audio_path))
+        except Exception:
+            pass
+
+    return True
+
+
 def main() -> None:
     st.set_page_config(
         page_title="VoiceGuard AI · Fraud Operations Dashboard",
@@ -2150,6 +2199,10 @@ def main() -> None:
     init_session()
     inject_css()
     render_header()
+
+    # Pre-warm models + cache scenario scores. Spinner shows once per
+    # container; subsequent visits hit the cached resource and skip it.
+    _warm_up_pipeline()
 
     tab_business, tab_dashboard, tab_audit = st.tabs([
         "  Business Case  ",
