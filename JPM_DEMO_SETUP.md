@@ -41,8 +41,8 @@ voice-cloning tool (ElevenLabs free tier, Resemble.ai, or similar):
    recording you used for enrollment (or a longer sample if available)
 3. Generate a 5–10 second clip of the clone reading something different,
    e.g. *"I need to wire twenty-five thousand dollars to a new account."*
-4. Download the result, then drop it into the **Demo Audio · AI Clone of
-   Customer** uploader in the dashboard
+4. Download the result, then drop it into the **Caller Audio Under
+   Test** uploader in the dashboard
 
 If you skip this step, Scenario 2 falls back to the existing
 `audio/clean.mp3` ElevenLabs sample — still a valid deepfake demo, but
