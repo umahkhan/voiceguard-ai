@@ -33,6 +33,12 @@ AUDIO_DIR = Path(__file__).parent / "audio"
 REGISTERED_VOICE_FILE = AUDIO_DIR / "customer_voiceprint_umair.m4a"
 SPOOFED_VOICE_FILE    = AUDIO_DIR / "customer_voiceprint_umair_spoofed.mp3"
 
+# Available customer voiceprints — the baseline pool the dashboard's
+# voiceprint dropdown picks from. Add new entries here to expand it.
+VOICEPRINTS: dict[str, str] = {
+    "Umair": "customer_voiceprint_umair.m4a",
+}
+
 
 # ---------------------------------------------------------------------------
 # Design tokens — Chase brand palette
@@ -75,24 +81,6 @@ HIGH_FG, HIGH_BG = "#c81e1e", "#fee2e2"
 #     `fallback_audio` if the preferred file isn't recorded yet
 # ---------------------------------------------------------------------------
 SCENARIOS: dict[str, dict] = {
-    "Umair": {
-        "spectral": 0.05, "prosody": 0.05, "behavior": 0.10, "conf": 0.10,
-        "audio": "customer_voiceprint_umair.m4a",  # same file as the voiceprint
-        "caller_id":      "+1 212-555-0199",
-        "claimed_name":   "Umair (registered customer)",
-        "account_suffix": "0042",
-        "txn_type":       "Balance inquiry · routine transfer",
-        "txn_amount":     1850,
-        "txn_destination":"existing internal account",
-        "prior_calls_30d": 6,
-        "ivr_path":       "Self-service first, then agent (typical pattern)",
-        "loss_avoidance": 0,
-        "narrative": (
-            "Caller audio is the enrolled voiceprint itself — sanity "
-            "check that the system passes legitimate calls cleanly."
-        ),
-        "expected": "PASS",
-    },
     "Umair Spoofed": {
         "spectral": 0.55, "prosody": 0.45, "behavior": 0.50, "conf": 0.60,
         "audio": "customer_voiceprint_umair_spoofed.mp3",
@@ -112,45 +100,6 @@ SCENARIOS: dict[str, dict] = {
             "is the failsafe."
         ),
         "expected": "FLAG",
-    },
-    "ElevenLabs (different speaker)": {
-        "spectral": 0.10, "prosody": 0.20, "behavior": 0.55, "conf": 0.55,
-        "audio": "clean.mp3",
-        "caller_id":      "+1 646-555-0177",
-        "claimed_name":   "Registered Customer (claimed)",
-        "account_suffix": "0042",
-        "txn_type":       "Add payee + transfer",
-        "txn_amount":     12800,
-        "txn_destination":"newly-added Zelle recipient",
-        "prior_calls_30d": 1,
-        "ivr_path":       "Pivoted from 'lost card' to a transfer request",
-        "loss_avoidance": 12800,
-        "narrative": (
-            "Modern neural TTS (ElevenLabs) of a speaker who is NOT "
-            "the enrolled customer. Synthesis classifier may miss "
-            "ElevenLabs entirely, but speaker match catches the "
-            "voiceprint mismatch."
-        ),
-        "expected": "FLAG",
-    },
-    "Robocall / Crude Bot": {
-        "spectral": 0.94, "prosody": 0.91, "behavior": 0.89, "conf": 0.94,
-        "audio": "ai_voice.wav",
-        "caller_id":      "+1 800-555-0123",
-        "claimed_name":   "Daniel Park",
-        "account_suffix": "5562",
-        "txn_type":       "Account verification request",
-        "txn_amount":     0,
-        "txn_destination":"—",
-        "prior_calls_30d": 4,
-        "ivr_path":       "Sub-second key presses, no human pauses",
-        "loss_avoidance": 87000,
-        "narrative": (
-            "Audio is unmistakably synthesized — robotic prosody, no "
-            "breath sounds, machine-cadenced IVR navigation. Both "
-            "signals trip."
-        ),
-        "expected": "BLOCK",
     },
 }
 
@@ -267,10 +216,8 @@ LIVE_MIC_SCENARIO = "Live Microphone Input"
 
 
 def _scenario_names() -> list[str]:
-    """All scenarios are always listed. The live-mic entry is always
-    appended too — voiceprint is pinned to a file in the project, so the
-    enrollment-gating logic of earlier versions no longer applies."""
-    return [*SCENARIOS.keys(), LIVE_MIC_SCENARIO]
+    """Caller Audio Under Test options."""
+    return list(SCENARIOS.keys())
 
 
 def _scenario_data(name: str) -> dict:
@@ -1245,30 +1192,34 @@ def _pipeline_status_html(position: str, graph_state: dict) -> str:
 def render_live_simulation() -> dict:
     left, right = st.columns([3, 7], gap="medium")
 
-    has_reg = bool(st.session_state.get("registered_voice_path"))
-    is_live_mic = st.session_state.get("preset_choice") == LIVE_MIC_SCENARIO
-    has_mic_clip = bool(st.session_state.get("live_mic_audio_path"))
-
     with left:
         incoming_slot = st.empty()
 
-        # ─── Customer Voiceprint (pinned to a file in the project) ───
-        dot_reg = "🟢" if has_reg else "⚪"
-        st.markdown(f"##### {dot_reg}  Customer Voiceprint")
+        # ─── Customer Voiceprint — dropdown + audio player ───────────
+        st.markdown("##### 🟢  Customer Voiceprint")
         st.caption("Baseline — every caller is compared against this.")
-        if has_reg:
-            ref_name = st.session_state.get("registered_voice_name", REGISTERED_VOICE_FILE.name)
-            ref_size = Path(st.session_state["registered_voice_path"]).stat().st_size
-            st.success(f"✓ Active · {ref_name} · {ref_size / 1024:0.0f} KB", icon=None)
+        vp_choice = st.selectbox(
+            "Voiceprint",
+            list(VOICEPRINTS.keys()),
+            key="voiceprint_choice",
+            on_change=_reset_call,
+            label_visibility="collapsed",
+        )
+        vp_path = AUDIO_DIR / VOICEPRINTS[vp_choice]
+        if vp_path.exists():
+            if st.session_state.get("registered_voice_path") != str(vp_path):
+                st.session_state["registered_voice_path"] = str(vp_path)
+                st.session_state["registered_voice_name"] = vp_path.name
+                _reset_call()
+            st.audio(str(vp_path))
+            has_reg = True
         else:
-            st.error(
-                f"⚠ Voiceprint missing — drop the enrollment audio at "
-                f"`audio/{REGISTERED_VOICE_FILE.name}`."
-            )
+            st.error(f"⚠ Missing audio file: `audio/{vp_path.name}`")
+            has_reg = False
 
-        # ─── Caller Audio Under Test (dropdown — formerly Active Scenario) ─
-        st.markdown("##### Caller Audio Under Test")
-        st.caption("Pick the caller audio to compare against the voiceprint.")
+        # ─── Caller Audio Under Test — orange "under test" dot ───────
+        st.markdown("##### 🟠  Caller Audio Under Test")
+        st.caption("The audio that gets compared against the voiceprint above.")
         st.selectbox(
             "Caller audio",
             _scenario_names() if has_reg else ["— voiceprint missing —"],
@@ -1277,37 +1228,15 @@ def render_live_simulation() -> dict:
             label_visibility="collapsed",
             disabled=not has_reg,
         )
-
-        # Surface a placeholder note when the preferred audio isn't on disk yet
-        if has_reg and not is_live_mic:
+        # Audio player for the selected caller-audio file
+        if has_reg:
             sel = st.session_state.get("preset_choice")
             sc = SCENARIOS.get(sel, {})
-            if sel and _is_using_fallback_audio(sel, sc):
-                st.caption(
-                    f"ℹ Using `{sc.get('fallback_audio')}` as a stand-in; "
-                    f"drop `{sc.get('audio')}` into audio/ to use the real file."
-                )
-
-        # Live-mic capture — only when the live-mic scenario is active
-        if is_live_mic:
-            mic_audio = st.audio_input(
-                "Record caller audio",
-                key="live_mic_recorder",
-                label_visibility="collapsed",
-            )
-            if mic_audio is not None:
-                content = mic_audio.getvalue()
-                h = hashlib.md5(content).hexdigest()[:12]
-                temp_path = Path(tempfile.gettempdir()) / f"voiceguard_mic_{h}.wav"
-                if not temp_path.exists():
-                    temp_path.write_bytes(content)
-                if st.session_state.get("live_mic_audio_path") != str(temp_path):
-                    st.session_state["live_mic_audio_path"] = str(temp_path)
-                    _reset_call()
-                st.caption(f"Captured · {len(content) / 1024:0.0f} KB")
-                has_mic_clip = True
-            elif has_mic_clip:
-                st.caption("Previous recording loaded.")
+            cau_path = _scenario_audio_path(sel, sc)
+            if cau_path and Path(cau_path).exists():
+                st.audio(cau_path)
+            elif sel and sc.get("audio"):
+                st.error(f"⚠ Missing audio file: `audio/{sc['audio']}`")
 
         if st.session_state.get("live_mode_error"):
             st.caption(f"⚠ {st.session_state['live_mode_error']}")
@@ -1315,19 +1244,12 @@ def render_live_simulation() -> dict:
         st.caption("ℹ️  Speaker Match compares the voiceprint above against whichever audio is selected.")
 
         # ─── Connect ─────────────────────────────────────────────────
-        connect_disabled = (
-            not has_reg
-            or (is_live_mic and not has_mic_clip)
-        )
+        connect_disabled = not has_reg
         place_call = st.button(
             "▶  Connect Incoming Call",
             type="primary",
             disabled=connect_disabled,
-            help=(
-                "Voiceprint missing" if not has_reg
-                else "Record audio first" if (is_live_mic and not has_mic_clip)
-                else None
-            ),
+            help="Voiceprint missing" if not has_reg else None,
         )
         audio_slot = st.empty()
 
