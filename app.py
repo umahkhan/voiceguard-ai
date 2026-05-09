@@ -1306,24 +1306,13 @@ def render_live_simulation() -> dict:
             "Voiceprint",
             list(VOICEPRINTS.keys()),
             key="voiceprint_choice",
-            on_change=_reset_call,
             label_visibility="collapsed",
         )
         vp_path = AUDIO_DIR / VOICEPRINTS[vp_choice]
         if vp_path.exists():
-            if st.session_state.get("registered_voice_path") != str(vp_path):
-                st.session_state["registered_voice_path"] = str(vp_path)
-                st.session_state["registered_voice_name"] = vp_path.name
-                _reset_call()
-            # Pass bytes + explicit MIME so Streamlit Cloud serves the file
-            # with the right Content-Type. Path-only call fails silently for
-            # .m4a on some runners (the browser receives octet-stream and
-            # never renders the audio control).
+            # Display only — voiceprint is a demo reference, not fed to the model.
             st.audio(vp_path.read_bytes(), format=_audio_mime(vp_path))
-            has_reg = True
-        else:
-            st.error(f"⚠ Missing audio file: `audio/{vp_path.name}`")
-            has_reg = False
+        has_reg = True
 
         # ─── Caller Audio Under Test — orange "under test" dot ───────
         st.markdown("##### 🟠  Caller Audio Under Test")
