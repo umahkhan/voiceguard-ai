@@ -639,8 +639,13 @@ def inject_css() -> None:
         f"html,body,[class*='css']{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:16px;color:{INK};}}"
         f".stApp{{background:{CANVAS};}}"
         # Suppress Streamlit's white-fog overlay that appears during reruns.
-        "[data-teststate='running'],[data-teststate='running']>*{opacity:1!important;}"
-        ".stApp>iframe{display:none;}"
+        # Streamlit 1.44+ adds a ::after pseudo-element over stApp and reduces
+        # opacity on the view container — override both.
+        ".stApp::before,.stApp::after{display:none!important;}"
+        ".stApp[data-teststate='running']{opacity:1!important;}"
+        ".stApp[data-teststate='running'] [data-testid='stAppViewContainer'],"
+        ".stApp[data-teststate='running'] .main,"
+        ".stApp[data-teststate='running'] section{opacity:1!important;}"
 
         # Header banner — solid Chase primary blue, no gradient
         f".vg-header{{background:{NAVY};"
