@@ -51,18 +51,51 @@ HIGH_FG, HIGH_BG = "#c81e1e", "#fee2e2"
 
 
 # ---------------------------------------------------------------------------
-# Scenarios — fraud-attack typology. Each entry includes the caller context
-# a human reviewer would see in production (claimed identity, transaction in
-# flight, prior call history). Scripted spectral/prosody/conf values are
-# overridden by real model output when Live Mode is on.
+# Scenarios — four fraud-typology use cases plus an on-demand live mic
+# scenario. Each maps to a specific JPM-relevant fraud pattern; together
+# they cover the four failure modes a JPM reviewer would expect to
+# defend against.
+#
+#  1. Authenticated Customer — enrolled voice playback → PASS
+#     "no friction for legit calls" (the FP-cost story)
+#  2. AI Voice Clone — ElevenLabs sample (JPM hears what a deepfake
+#     actually sounds like) → FLAG via speaker mismatch
+#  3. Real-Person Impersonator — different real human → FLAG via
+#     speaker mismatch (the case a synthesis-only detector misses)
+#  4. Robocall / Crude Bot — older TTS → BLOCK (both signals trip)
+#
+# Audio resolution:
+#   - requires_registered_voice=True → uses the uploaded enrollment clip
+#   - otherwise looks for `audio` filename in audio/, falls back to
+#     `fallback_audio` if the preferred file isn't recorded yet
 # ---------------------------------------------------------------------------
 SCENARIOS: dict[str, dict] = {
-    "Voice Clone Attempt — Female Caller": {
-        "spectral": 0.55, "prosody": 0.40, "behavior": 0.62, "conf": 0.62,
+    "1 · Authenticated Customer": {
+        "spectral": 0.05, "prosody": 0.05, "behavior": 0.10, "conf": 0.10,
+        "audio": None,
+        "requires_registered_voice": True,
+        "caller_id":      "+1 212-555-0199",
+        "claimed_name":   "Registered Customer",
+        "account_suffix": "0042",
+        "txn_type":       "Balance inquiry · routine transfer",
+        "txn_amount":     1850,
+        "txn_destination":"existing internal account",
+        "prior_calls_30d": 6,
+        "ivr_path":       "Self-service first, then agent (typical pattern)",
+        "loss_avoidance": 0,
+        "narrative": (
+            "Voiceprint matches the enrolled customer baseline. No "
+            "synthesis artifacts. Caller's IVR navigation matches their "
+            "historical pattern. Authenticated."
+        ),
+        "expected": "PASS",
+    },
+    "2 · AI Voice Clone (ElevenLabs)": {
+        "spectral": 0.55, "prosody": 0.45, "behavior": 0.50, "conf": 0.60,
         "audio": "clean.mp3",
         "caller_id":      "+1 415-555-0144",
-        "claimed_name":   "Sarah Chen",
-        "account_suffix": "8421",
+        "claimed_name":   "Registered Customer (claimed)",
+        "account_suffix": "0042",
         "txn_type":       "Wire transfer",
         "txn_amount":     27500,
         "txn_destination":"new external beneficiary (first time)",
@@ -70,35 +103,35 @@ SCENARIOS: dict[str, dict] = {
         "ivr_path":       "Direct-to-agent (skipped self-service)",
         "loss_avoidance": 27500,
         "narrative": (
-            "Caller claims to be account holder. Voice sounds natural but "
-            "does NOT match the enrolled voiceprint. Most likely a "
-            "synthetic clone of a different speaker, or a real impersonator. "
-            "High-value wire request to a new beneficiary raises the "
-            "transaction risk."
+            "Voice sounds natural — modern neural TTS. Speaker match "
+            "is the load-bearing signal here: the deepfake classifier "
+            "may not catch ElevenLabs alone, but the voiceprint does "
+            "not match the enrolled customer."
         ),
         "expected": "FLAG",
     },
-    "Voice Clone Attempt — Male Caller": {
-        "spectral": 0.55, "prosody": 0.40, "behavior": 0.58, "conf": 0.62,
-        "audio": "borderline.mp3",
+    "3 · Real-Person Impersonator": {
+        "spectral": 0.10, "prosody": 0.20, "behavior": 0.55, "conf": 0.55,
+        "audio": "impersonator.wav",
+        "fallback_audio": "borderline.mp3",
         "caller_id":      "+1 646-555-0177",
-        "claimed_name":   "Marcus Reilly",
-        "account_suffix": "3309",
+        "claimed_name":   "Registered Customer (claimed)",
+        "account_suffix": "0042",
         "txn_type":       "Add payee + transfer",
         "txn_amount":     12800,
         "txn_destination":"newly-added Zelle recipient",
         "prior_calls_30d": 1,
-        "ivr_path":       "Selected 'lost card' before pivoting to transfers",
+        "ivr_path":       "Pivoted from 'lost card' to a transfer request",
         "loss_avoidance": 12800,
         "narrative": (
-            "Caller's voice does not match the enrolled voiceprint for "
-            "this account. IVR pattern is unusual — pivoted from card "
-            "support to a transfer request mid-call, a known social-"
-            "engineering pretext."
+            "Real human voice, no synthesis artifacts — but the "
+            "voiceprint does not match the enrolled customer. This is "
+            "the case a synthesis-only detector would miss entirely. "
+            "Speaker verification carries the load."
         ),
         "expected": "FLAG",
     },
-    "Robocall Bot (Crude Synthesizer)": {
+    "4 · Robocall / Crude Bot": {
         "spectral": 0.94, "prosody": 0.91, "behavior": 0.89, "conf": 0.94,
         "audio": "ai_voice.wav",
         "caller_id":      "+1 800-555-0123",
@@ -111,10 +144,10 @@ SCENARIOS: dict[str, dict] = {
         "ivr_path":       "Sub-second key presses, no human pauses",
         "loss_avoidance": 87000,
         "narrative": (
-            "Audio is unmistakably synthesized. Robotic prosody, no breath "
-            "sounds, machine-cadenced IVR navigation. Pattern matches "
-            "credential-harvesting bot rings observed across the network "
-            "in the last 30 days."
+            "Audio is unmistakably synthesized — robotic prosody, no "
+            "breath sounds, machine-cadenced IVR navigation. Both "
+            "signals trip; pattern matches credential-harvesting bot "
+            "rings observed across the network."
         ),
         "expected": "BLOCK",
     },
@@ -180,46 +213,27 @@ def _speaker_similarity(reference_path: str, test_path: str) -> float:
     return float(_sim(reference_path, test_path))
 
 
-REGISTERED_SCENARIO = "Authenticated Customer (Your Voice)"
-LIVE_MIC_SCENARIO   = "Live Microphone Input"
+LIVE_MIC_SCENARIO = "Live Microphone Input"
 
 
 def _scenario_names() -> list[str]:
-    """Available scenarios. The registered-customer entry appears once a
-    reference voice has been uploaded; the live-mic entry appears whenever
-    Live Mode is on."""
-    base = list(SCENARIOS.keys())
-    extras: list[str] = []
-    if st.session_state.get("registered_voice_path"):
-        extras.append(REGISTERED_SCENARIO)
+    """Available scenarios. Entries that require a registered voice are
+    only listed once one has been enrolled. The live-mic entry appears
+    whenever Live Detection is on."""
+    has_reg = bool(st.session_state.get("registered_voice_path"))
+    names: list[str] = []
+    for n, sc in SCENARIOS.items():
+        if sc.get("requires_registered_voice") and not has_reg:
+            continue
+        names.append(n)
     if st.session_state.get("live_mode"):
-        extras.append(LIVE_MIC_SCENARIO)
-    return extras + base
+        names.append(LIVE_MIC_SCENARIO)
+    return names
 
 
 def _scenario_data(name: str) -> dict:
-    """Resolve a scenario name to its data dict. The registered-customer
-    and live-mic scenarios are synthesized at runtime."""
-    if name == REGISTERED_SCENARIO:
-        return {
-            "spectral": 0.05, "prosody": 0.05, "behavior": 0.10, "conf": 0.10,
-            "audio": None,  # path comes from registered_voice_path
-            "caller_id":      "+1 212-555-0199",
-            "claimed_name":   "Registered Customer",
-            "account_suffix": "0042",
-            "txn_type":       "Balance inquiry · routine transfer",
-            "txn_amount":     1850,
-            "txn_destination":"existing internal account",
-            "prior_calls_30d": 6,
-            "ivr_path":       "Self-service first, then agent (typical pattern)",
-            "loss_avoidance": 0,
-            "narrative": (
-                "Voiceprint matches the enrolled customer baseline within "
-                "expected tolerance. No synthesis artifacts. Caller's IVR "
-                "navigation matches their historical pattern. Authenticated."
-            ),
-            "expected": "PASS",
-        }
+    """Resolve a scenario name to its data dict. Live-mic is synthesized;
+    everything else lives in the SCENARIOS dict."""
     if name == LIVE_MIC_SCENARIO:
         return {
             "spectral": 0.30, "prosody": 0.30, "behavior": 0.30, "conf": 0.30,
@@ -227,16 +241,16 @@ def _scenario_data(name: str) -> dict:
             "caller_id":      "Microphone (local capture)",
             "claimed_name":   "Live Caller",
             "account_suffix": "—",
-            "txn_type":       "Live recording — verdict from real-time analysis",
+            "txn_type":       "Live recording — real-time analysis",
             "txn_amount":     0,
             "txn_destination":"—",
             "prior_calls_30d": 0,
             "ivr_path":       "Direct microphone input",
             "loss_avoidance": 0,
             "narrative": (
-                "Audio captured live from the operator's microphone. Speaker "
-                "match and synthesis-detection signals are computed against "
-                "the registered customer voiceprint and shown below."
+                "Audio captured live from the operator's microphone. "
+                "Speaker match and synthesis-detection signals are "
+                "computed against the registered customer voiceprint."
             ),
             "expected": "—",
         }
@@ -244,11 +258,40 @@ def _scenario_data(name: str) -> dict:
 
 
 def _scenario_audio_path(name: str, sc: dict) -> str | None:
-    if name == REGISTERED_SCENARIO:
-        return st.session_state.get("registered_voice_path") or None
+    """Resolve the audio file path for a scenario. Three rules:
+      1. Live mic → uses the live_mic_audio_path session state.
+      2. requires_registered_voice → uses registered_voice_path.
+      3. Else → looks for sc['audio'] in AUDIO_DIR; falls back to
+         sc['fallback_audio'] if the preferred file isn't recorded yet.
+    """
     if name == LIVE_MIC_SCENARIO:
         return st.session_state.get("live_mic_audio_path") or None
-    return str(AUDIO_DIR / sc["audio"]) if sc.get("audio") else None
+    if sc.get("requires_registered_voice"):
+        return st.session_state.get("registered_voice_path") or None
+    preferred = sc.get("audio")
+    if preferred:
+        p = AUDIO_DIR / preferred
+        if p.exists():
+            return str(p)
+    fallback = sc.get("fallback_audio")
+    if fallback:
+        f = AUDIO_DIR / fallback
+        if f.exists():
+            return str(f)
+    return None
+
+
+def _is_using_fallback_audio(name: str, sc: dict) -> bool:
+    """True when the scenario is playing fallback audio because the
+    preferred recording isn't in audio/ yet — used to surface a small
+    'demo placeholder' caption to the operator."""
+    if name == LIVE_MIC_SCENARIO or sc.get("requires_registered_voice"):
+        return False
+    preferred = sc.get("audio")
+    fallback = sc.get("fallback_audio")
+    if not preferred or not fallback:
+        return False
+    return not (AUDIO_DIR / preferred).exists() and (AUDIO_DIR / fallback).exists()
 
 
 def _combined_verdict(
@@ -287,7 +330,7 @@ def current_state() -> dict:
     is computed and the verdict is recalculated using combined-signal
     logic (deepfake score OR speaker mismatch can trigger).
     """
-    valid_names = (*SCENARIOS.keys(), REGISTERED_SCENARIO, LIVE_MIC_SCENARIO)
+    valid_names = (*SCENARIOS.keys(), LIVE_MIC_SCENARIO)
     name = st.session_state.get("preset_choice", "")
     if name not in valid_names:
         name = next(iter(SCENARIOS.keys()))
@@ -1120,114 +1163,103 @@ def _render_complete_right(slot, state: dict) -> None:
 def render_live_simulation() -> dict:
     left, right = st.columns([3, 7], gap="medium")
 
+    has_reg = bool(st.session_state.get("registered_voice_path"))
+    is_live_mic = st.session_state.get("preset_choice") == LIVE_MIC_SCENARIO
+    has_mic_clip = bool(st.session_state.get("live_mic_audio_path"))
+
     with left:
         incoming_slot = st.empty()
-        st.markdown("### Scenario")
+
+        # ─────────────────────────────────────────────────────────────
+        # Step 1 — Enroll customer voice (always required)
+        # ─────────────────────────────────────────────────────────────
+        st.markdown(
+            f"### {'✓' if has_reg else '①'}  Step 1 · Enroll Customer Voice"
+        )
+        method = st.radio(
+            "Enrollment method",
+            ["Record (recommended)", "Upload file"],
+            key="enrollment_method",
+            horizontal=True,
+            label_visibility="collapsed",
+            help=(
+                "Recording with the browser mic gives the best live-call "
+                "match because both clips use the same device and codec."
+            ),
+        )
+        if method == "Record (recommended)":
+            ref_audio = st.audio_input(
+                "Record customer voice",
+                key="registered_voice_recorder",
+                label_visibility="collapsed",
+            )
+            if ref_audio is not None:
+                content = ref_audio.getvalue()
+                h = hashlib.md5(content).hexdigest()[:12]
+                temp_path = Path(tempfile.gettempdir()) / f"voiceguard_ref_{h}.wav"
+                if not temp_path.exists():
+                    temp_path.write_bytes(content)
+                if st.session_state.get("registered_voice_path") != str(temp_path):
+                    st.session_state["registered_voice_path"] = str(temp_path)
+                    _reset_call()
+                st.caption(f"Enrolled (recorded) · {len(content) / 1024:0.0f} KB")
+            elif has_reg:
+                st.caption("Enrolled voiceprint loaded.")
+        else:
+            uploaded = st.file_uploader(
+                "Registered Customer Voice",
+                type=["wav", "mp3", "m4a", "flac"],
+                key="registered_voice_uploader",
+                label_visibility="collapsed",
+                help=(
+                    "Upload a 5–10s clip. Cross-device uploads (e.g. "
+                    "Voice Memos m4a vs browser mic) tend to score "
+                    "~0.20 lower on same-speaker match than matched "
+                    "recording conditions."
+                ),
+            )
+            if uploaded is not None:
+                content = uploaded.read()
+                h = hashlib.md5(content).hexdigest()[:12]
+                suffix = Path(uploaded.name).suffix.lower() or ".wav"
+                temp_path = Path(tempfile.gettempdir()) / f"voiceguard_ref_{h}{suffix}"
+                if not temp_path.exists():
+                    temp_path.write_bytes(content)
+                if st.session_state.get("registered_voice_path") != str(temp_path):
+                    st.session_state["registered_voice_path"] = str(temp_path)
+                    _reset_call()
+                st.caption(
+                    f"Enrolled (uploaded) · {Path(uploaded.name).name} · "
+                    f"{len(content) / 1024:0.0f} KB"
+                )
+            elif has_reg:
+                st.caption("Enrolled voiceprint loaded.")
+
+        # ─────────────────────────────────────────────────────────────
+        # Step 2 — Pick scenario (dimmed until Step 1 done)
+        # ─────────────────────────────────────────────────────────────
+        st.markdown(
+            f"### {'②' if has_reg else '·'}  Step 2 · Pick Scenario"
+            + ("" if has_reg else "  *(enroll first)*")
+        )
         st.selectbox(
             "Scenario",
-            _scenario_names(),
+            _scenario_names() if has_reg else ["(enroll a customer voice first)"],
             key="preset_choice",
             on_change=_reset_call,
             label_visibility="collapsed",
+            disabled=not has_reg,
         )
-        st.markdown("### Detection Mode")
-        st.toggle(
-            "Live Detection",
-            key="live_mode",
-            on_change=_reset_call,
-            help=(
-                "Off: scripted scenario scores (instant, used for the "
-                "walkthrough). On: runs real-time synthesis detection "
-                "on the call audio. If a registered customer voice is "
-                "also uploaded, the system additionally compares the "
-                "caller's voiceprint to the enrolled baseline. First "
-                "run takes ~10–20s to warm up."
-            ),
-        )
-        if st.session_state.get("live_mode"):
-            st.markdown("### Registered Customer Voice")
-            method = st.radio(
-                "Enrollment method",
-                ["Record", "Upload file"],
-                key="enrollment_method",
-                horizontal=True,
-                label_visibility="collapsed",
-                help=(
-                    "Recording with the browser mic gives the best "
-                    "live-call match because both clips use the same "
-                    "device and codec. Upload only if you want to "
-                    "enroll from an existing recording — but expect "
-                    "lower same-speaker scores when conditions differ."
-                ),
-            )
-            if method == "Record":
-                ref_audio = st.audio_input(
-                    "Record customer voice",
-                    key="registered_voice_recorder",
-                    label_visibility="collapsed",
-                    help=(
-                        "Speak continuously for 5–10 seconds. The "
-                        "browser captures audio with the same mic and "
-                        "codec the live-call scenario uses, so "
-                        "same-speaker similarity will be high."
-                    ),
-                )
-                if ref_audio is not None:
-                    content = ref_audio.getvalue()
-                    h = hashlib.md5(content).hexdigest()[:12]
-                    temp_path = Path(tempfile.gettempdir()) / f"voiceguard_ref_{h}.wav"
-                    if not temp_path.exists():
-                        temp_path.write_bytes(content)
-                    if st.session_state.get("registered_voice_path") != str(temp_path):
-                        st.session_state["registered_voice_path"] = str(temp_path)
-                        _reset_call()
-                    st.caption(f"Enrolled (recorded) · {len(content) / 1024:0.0f} KB")
-                elif st.session_state.get("registered_voice_path"):
-                    st.caption("Enrolled voiceprint loaded.")
-            else:
-                uploaded = st.file_uploader(
-                    "Registered Customer Voice",
-                    type=["wav", "mp3", "m4a", "flac"],
-                    key="registered_voice_uploader",
-                    label_visibility="collapsed",
-                    help=(
-                        "Upload a 5–10 second clip. Note: if the upload "
-                        "uses a different mic/codec than the live call "
-                        "(e.g. Voice Memos m4a vs browser mic), "
-                        "same-speaker similarity may drop ~0.20 below "
-                        "what you'd see with matched conditions."
-                    ),
-                )
-                if uploaded is not None:
-                    content = uploaded.read()
-                    h = hashlib.md5(content).hexdigest()[:12]
-                    suffix = Path(uploaded.name).suffix.lower() or ".wav"
-                    temp_path = Path(tempfile.gettempdir()) / f"voiceguard_ref_{h}{suffix}"
-                    if not temp_path.exists():
-                        temp_path.write_bytes(content)
-                    if st.session_state.get("registered_voice_path") != str(temp_path):
-                        st.session_state["registered_voice_path"] = str(temp_path)
-                        _reset_call()
-                    st.caption(
-                        f"Enrolled (uploaded) · {Path(uploaded.name).name} · "
-                        f"{len(content) / 1024:0.0f} KB"
-                    )
-                elif st.session_state.get("registered_voice_path"):
-                    st.caption("Enrolled voiceprint loaded.")
-        if st.session_state.get("live_mode_error"):
-            st.caption(f"⚠ {st.session_state['live_mode_error']}")
 
-        # Live mic capture — only meaningful when the live-mic scenario is selected
-        if st.session_state.get("preset_choice") == LIVE_MIC_SCENARIO:
-            st.markdown("### Live Microphone")
+        # Live mic recorder — only visible when live-mic scenario picked
+        if is_live_mic:
             mic_audio = st.audio_input(
                 "Record caller audio",
                 key="live_mic_recorder",
                 label_visibility="collapsed",
                 help=(
-                    "Click to record live audio. The dashboard will run "
-                    "speaker verification + deepfake detection on whatever "
-                    "you record, against the enrolled voice."
+                    "Speak as if you were the caller. Speaker match + "
+                    "synthesis detection both run against this recording."
                 ),
             )
             if mic_audio is not None:
@@ -1240,21 +1272,33 @@ def render_live_simulation() -> dict:
                     st.session_state["live_mic_audio_path"] = str(temp_path)
                     _reset_call()
                 st.caption(f"Recording captured · {len(content) / 1024:0.0f} KB")
-            elif st.session_state.get("live_mic_audio_path"):
-                # Streamlit clears the widget when the user re-records.
-                # Keep the previous capture available until a new one comes in.
+                has_mic_clip = True
+            elif has_mic_clip:
                 st.caption("Previous recording loaded — record again to refresh.")
 
-        st.markdown("### Connect")
+        if st.session_state.get("live_mode_error"):
+            st.caption(f"⚠ {st.session_state['live_mode_error']}")
+
+        # ─────────────────────────────────────────────────────────────
+        # Step 3 — Connect (dimmed until prerequisites are met)
+        # ─────────────────────────────────────────────────────────────
+        st.markdown(
+            f"### {'③' if has_reg else '·'}  Step 3 · Connect"
+            + ("" if has_reg else "  *(enroll first)*")
+        )
         connect_disabled = (
-            st.session_state.get("preset_choice") == LIVE_MIC_SCENARIO
-            and not st.session_state.get("live_mic_audio_path")
+            not has_reg
+            or (is_live_mic and not has_mic_clip)
         )
         place_call = st.button(
             "▶  Connect Incoming Call",
             type="primary",
             disabled=connect_disabled,
-            help="Record audio first" if connect_disabled else None,
+            help=(
+                "Enroll a customer voice first" if not has_reg
+                else "Record audio first" if (is_live_mic and not has_mic_clip)
+                else None
+            ),
         )
         audio_slot = st.empty()
 
@@ -1517,7 +1561,10 @@ def init_session() -> None:
     ss.setdefault("call_progress",  0.0)
     ss.setdefault("session_calls", [])
     ss.setdefault("session_id",     int(time.time()) % 100000)
-    ss.setdefault("live_mode",     False)
+    # live_mode is no longer a user toggle — detection is always on.
+    # Kept in state so the conditional code paths in current_state /
+    # _scenario_names continue to work without refactoring.
+    ss["live_mode"] = True
     ss.setdefault("live_mode_error", "")
     ss.setdefault("registered_voice_path", "")
     ss.setdefault("live_mic_audio_path",   "")
