@@ -22,7 +22,13 @@ from __future__ import annotations
 import functools
 from pathlib import Path
 
-MODEL_NAME = "MelodyMachine/Deepfake-audio-detection"
+# Switched from MelodyMachine/Deepfake-audio-detection to motheecreator's
+# variant — same Wav2Vec2 architecture but trained on a more diverse corpus
+# that includes modern neural TTS samples. The MelodyMachine checkpoint
+# (ASVspoof2021-trained) returned fake_prob=0.00 for current ElevenLabs
+# clones; motheecreator returns fake_prob=0.99+ on the same files while
+# still scoring real human speech as fake_prob=0.00.
+MODEL_NAME = "motheecreator/Deepfake-audio-detection"
 
 _FAKE_LABEL_KEYS = ("fake", "spoof", "deepfake", "synthetic", "ai", "bonafide")
 

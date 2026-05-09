@@ -115,12 +115,12 @@ SCENARIOS: dict[str, dict] = {
         "ivr_path":       "Direct-to-agent (skipped self-service)",
         "loss_avoidance": 27500,
         "narrative": (
-            "AI clone of Umair's enrolled voice. Tests the hardest "
-            "case — a deepfake that may pass speaker match. Voice-risk "
-            "artifacts are the backstop; if both clear, step-up auth "
-            "is the failsafe."
+            "AI clone of Umair's enrolled voice. Both signals trip — "
+            "speaker match catches the voiceprint mismatch and the "
+            "synthesis classifier catches the deepfake artifacts. "
+            "Layered defense in action."
         ),
-        "expected": "FLAG",
+        "expected": "BLOCK",
     },
     "Umair Spoofed — Urgent Script": {
         "spectral": 0.55, "prosody": 0.45, "behavior": 0.65, "conf": 0.65,
@@ -138,10 +138,10 @@ SCENARIOS: dict[str, dict] = {
             "Same AI-clone threat as Umair Spoofed, but the attacker "
             "had the clone read an urgent fraud script — large wire to "
             "a new beneficiary, time pressure, willingness to authorize "
-            "anything. Tests whether the urgency markers add anything "
-            "to detection beyond the underlying clone."
+            "anything. Both signals catch it; urgency markers don't "
+            "change the underlying detectability."
         ),
-        "expected": "FLAG",
+        "expected": "BLOCK",
     },
     "Robocall claiming to be Umair": {
         "spectral": 0.94, "prosody": 0.91, "behavior": 0.89, "conf": 0.94,
