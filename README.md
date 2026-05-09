@@ -1,45 +1,153 @@
 # VoiceGuard AI
 
-> Real-time voice fraud defense dashboard for contact-center call flows.
-> JPMorgan-aligned design system. Built with Streamlit.
+> Real-time voice-fraud detection dashboard with human-in-the-loop review.
+> Two layered ML signals (speaker biometrics + deepfake classifier) feeding
+> a LangGraph pipeline that pauses for a human reviewer before deciding.
 
 ---
 
 ## Live Demo
 
-**▶ Try it here: https://voiceguard-ai.streamlit.app**
+**▶ https://voiceguard-ai.streamlit.app**
 
-No setup, no signup — open the link, pick a scenario, click **Place Incoming Call**, and switch between the **Live Simulation** and **Call Risk Audit** tabs to watch both panels animate in sync.
+Open the link, pick a scenario from **Caller Audio Under Test**, click **Connect Incoming Call**, watch the Speaker Match and Voice Risk meters populate, then click one of the three reviewer-action buttons (Approve / Step-Up Auth / Block) to resume the pipeline.
 
 ---
 
 ## What It Does
 
-VoiceGuard AI simulates how a bank's contact center would catch a synthetic-voice ("deepfake") fraud call as it moves through the IVR and onto a live agent. The dashboard walks through a 6-stage defense pipeline and shows, in real time:
+VoiceGuard AI is a fraud-operations dashboard for a contact-center reviewer. When a call comes in, the system runs **two complementary ML models in parallel** against the audio:
 
-- Whether the call is **cleared, flagged, or blocked**
-- Voice biometric scores (spectral + prosody)
-- Agent suspicion + behavioral risk
-- Which defense stages **ran** vs. were **skipped** based on confidence thresholds
-- A play-by-play stage detail with live status (`pending → running → executed/skipped`)
-- Estimated loss avoided per intercepted call
+1. **Speaker Match (ECAPA-TDNN)** — voiceprint similarity between the caller and the enrolled customer. Catches *who* the caller is, regardless of whether the audio is real or synthetic.
+2. **Voice Risk (Wav2Vec2 deepfake classifier)** — synthesis-detection probability on the caller's audio. Catches *what kind* of audio it is, regardless of who's claimed to be calling.
 
-Three pre-built scenarios let you compare outcomes:
+The two signals are combined into a single verdict (PASS / FLAG / BLOCK), and the call is routed through a **LangGraph pipeline** that pauses for a human reviewer's decision before taking any downstream action (auth challenge, block, or clear).
 
-| Scenario | What it represents |
-|---|---|
-| **Clean Caller** | Normal customer — all signals within baseline. PASS. |
-| **Borderline Suspicious** | Mixed signals — rehearsed prosody, hesitant navigation. FLAG. |
-| **Synthetic Bot — High Confidence** | All three indicators flag clear synthesis. BLOCK. |
+This architecture closes a gap that single-model approaches miss: modern AI voice clones (e.g. ElevenLabs) can fool synthesis classifiers but cannot easily fool a speaker-verification model trained on the customer's actual voice.
 
 ---
 
-## Two Tabs, One Synced Animation
+## The Architecture
 
-- **Live Simulation** — incoming-call card, scenario selector, place-call button, verdict bar, three risk metrics, recommended action, system note.
-- **Call Risk Audit** — the same call's audit trail: meta strip, path-taken pills, and a stage-by-stage breakdown.
+### Two ML signals, both real
 
-When you place a call, **both tabs animate in sync** — meta, path pills, and stage rows tick together over the 20-second analysis window. Switch tabs mid-call and you'll see the same moment from each perspective.
+```
+Caller audio (m4a / mp3 / wav)
+        │
+        ├──→ ECAPA-TDNN (SpeechBrain)         ──→ Speaker Match score
+        │      • 192-dim voice embedding
+        │      • cosine similarity vs. customer voiceprint
+        │      • same speaker: 0.5–0.9
+        │      • different speaker: -0.1 to 0.3
+        │
+        └──→ Wav2Vec2 deepfake classifier      ──→ Voice Risk score
+              • motheecreator/Deepfake-audio-detection
+              • 94.5M-parameter network
+              • binary {fake, real} probability
+              • plus librosa F0-CV anomaly as a secondary signal
+```
+
+Both models run on every Connect — no scripted scores, no hardcoded values. The dashboard's meter values are the actual model outputs.
+
+### LangGraph pipeline with human-in-the-loop
+
+```
+START
+  │
+  ▼
+[1. Voice Cloning Detector]   ← ECAPA + Wav2Vec2 inference, populates state
+  │
+  ▼
+[2. IVR Entry — Defense 1]    ← combines voice signals into entry confidence
+  │
+  ├── ivr_entry_confidence > 0.8 ─────────────┐
+  │                                           │
+  └── ≤ 0.8 → [3. IVR Nav — Defense 2]        │
+                       │                      │
+                       ▼                      ▼
+              [4. Agent Handoff — Defense 3]
+                  • computes agent confidence
+                  • generates alert message for the live reviewer
+                       │
+                       ▼
+              ⏸ ─────── INTERRUPT_AFTER ─────── ⏸
+                  Graph pauses here. Reviewer sees the
+                  HITL panel in the dashboard, picks one
+                  of Approve / Step-Up Auth / Block.
+                  Their decision is written to state, the
+                  graph resumes via invoke(None, config).
+                       │
+              ┌────────┼─────────────┐
+              │ stepup │ approve     │ block
+              ▼        ▼             ▼
+       [5. Auth     │             │
+        Challenge] │             │
+              │     ▼             ▼
+              └─►[6. Intelligence — leadership log]
+                       │
+                       ▼
+                      END
+```
+
+The pause is implemented with LangGraph's `interrupt_after=["agent_handoff"]` plus a `MemorySaver` checkpointer. Each call gets a unique `thread_id` so multiple paused calls don't collide.
+
+When the reviewer clicks an action button:
+
+```python
+g.update_state(config, {"human_decision": "stepup"})
+g.invoke(None, config=config)
+```
+
+The conditional edge from `agent_handoff` reads `human_decision` and routes accordingly:
+
+| Decision | Path |
+|---|---|
+| `approve` | → intelligence (case cleared) |
+| `stepup` | → auth_challenge (OTP fires) → intelligence |
+| `block` | → intelligence (transaction_blocked=True, case logged) |
+
+This isn't cosmetic — clicking a button in the dashboard actually advances a real graph that runs downstream nodes.
+
+---
+
+## Models
+
+| Component | Model | Why this one |
+|---|---|---|
+| Speaker verification | [`speechbrain/spkrec-ecapa-voxceleb`](https://huggingface.co/speechbrain/spkrec-ecapa-voxceleb) | Industry-standard ECAPA-TDNN trained on VoxCeleb; same architecture used by production speaker-recognition systems. Replaces an earlier Resemblyzer-based prototype that gave too much overlap between same/different speaker pairs. |
+| Deepfake detection | [`motheecreator/Deepfake-audio-detection`](https://huggingface.co/motheecreator/Deepfake-audio-detection) | Wav2Vec2 fine-tuned on a corpus that includes modern neural TTS samples. The fine-tuned successor (`MelodyMachine/Deepfake-audio-detection`) reports higher in-distribution accuracy but generalizes worse to current ElevenLabs — exactly the threat we care about. See PROJECT_NOTES.md for the head-to-head numbers. |
+| Pitch anomaly | `librosa.yin` | Classical YIN pitch tracker; F0 coefficient-of-variation as a secondary signal. Catches older/cruder synthesis even when the Wav2Vec2 model misses. |
+
+### Combined verdict logic
+
+```python
+# Speaker similarity → mismatch risk (flips direction so high = bad)
+mismatch_norm = clip((0.35 - similarity) / 0.10, 0, 1)
+mismatch_risk = mismatch_norm * 0.65    # caps at FLAG band
+
+# Synthesis is already on the right axis
+deepfake = max(spectral, prosody)
+
+# Both on "high = bad" scale; worst signal wins
+risk = max(deepfake, mismatch_risk)
+verdict = PASS if risk < 0.50 else FLAG if risk < 0.75 else BLOCK
+```
+
+The 0.65 cap on `mismatch_risk` means speaker mismatch alone never blocks (caps at FLAG); only synthesis detection (or both signals together) can push to BLOCK. Keeps the FP rate down — speaker mismatch on a borderline match shouldn't auto-block; reviewer should eye the call first.
+
+---
+
+## Demo Scenarios
+
+The dashboard has **one customer voiceprint** (Umair Khan, account ****0042) and **five caller-audio scenarios**:
+
+| Scenario | Source | Verdict | What it teaches |
+|---|---|---|---|
+| Real Call · Example 1 | Customer's enrollment recording (replay) | PASS | Sanity check — same audio as voiceprint. |
+| Real Call · Example 2 | Different recording, same speaker | PASS | Cross-content speaker matching — the realistic case. |
+| AI Clone · Neutral Script | ElevenLabs clone of customer reading a neutral script | BLOCK | Modern deepfake of the actual customer. **Headline test case.** |
+| AI Clone · Urgent Script | ElevenLabs clone reading a fraud-style urgent script | BLOCK | Same threat, different content. Detection is content-agnostic. |
+| Robocall | macOS `say -v Albert` reading the customer's script | BLOCK | Crude TTS — easy case, clearly synthetic. Both signals trip cleanly. |
 
 ---
 
@@ -53,35 +161,14 @@ cd voiceguard-ai
 
 python -m venv .venv
 source .venv/bin/activate          # Windows: .venv\Scripts\activate
-
 pip install -r requirements.txt
 
 streamlit run app.py
 ```
 
-The app will open at `http://localhost:8501`. **No API keys required** — the demo uses bundled audio (`audio/`) and hardcoded scenario data.
+The app opens at `http://localhost:8501`. **First call has a cold-start of ~15–25 s** while the two models download (~720 MB Wav2Vec2 + ~80 MB ECAPA). Subsequent calls are sub-second.
 
----
-
-## Deploy Your Own (Streamlit Community Cloud — Free)
-
-The fastest way to share VoiceGuard with anyone:
-
-1. Push your fork to GitHub.
-2. Go to **https://share.streamlit.io** and sign in with GitHub.
-3. Click **New app** → pick this repo → set the main file to `app.py` → **Deploy**.
-4. You'll get a public URL like `https://<your-handle>-voiceguard.streamlit.app`. Share it.
-
-Deploys take about 60 seconds. Re-deploys happen automatically on every push to `main`.
-
-> **Note on secrets:** the bundled demo needs none. If you later wire up the optional LangGraph pipeline (see below), add `ANTHROPIC_API_KEY` and `ELEVENLABS_API_KEY` via the Streamlit Cloud **Secrets** pane — they get injected as environment variables at runtime and never enter the repo.
-
-### Other hosting options
-
-| Platform | Notes |
-|---|---|
-| **Hugging Face Spaces** | Pick the Streamlit SDK, paste the repo, add secrets in the UI. |
-| **Render / Railway / Fly.io** | Set start command to `streamlit run app.py --server.port $PORT --server.address 0.0.0.0`. |
+No API keys required for the core dashboard. The optional `_anthropic.py` helper adds Claude-generated alert text inside the LangGraph pipeline — set `ANTHROPIC_API_KEY` if you want that, otherwise it falls back to canned strings.
 
 ---
 
@@ -89,40 +176,58 @@ Deploys take about 60 seconds. Re-deploys happen automatically on every push to 
 
 ```
 .
-├── app.py              # Streamlit dashboard (the demo)
-├── audio/              # Pre-rendered scenario audio (mp3 + wav)
-├── graph.py            # Optional LangGraph pipeline wiring (not used by app.py)
-├── state.py            # Typed state schema for the pipeline
-├── agents/             # 6 stage agents — voice cloning, IVR, handoff, auth, intel
+├── app.py                          # Streamlit dashboard (the UI + HITL handlers)
+├── graph.py                        # LangGraph wiring with interrupt_after + MemorySaver
+├── state.py                        # Typed state schema for the pipeline
+├── detectors/
+│   ├── voice_clone.py              # Wav2Vec2 + librosa F0 (Voice Risk)
+│   └── speaker_verify.py           # SpeechBrain ECAPA-TDNN (Speaker Match)
+├── agents/
+│   ├── node1_voice_cloning.py      # graph node — populates Stage 1 signals
+│   ├── node2_ivr_entry.py          # IVR entry analyzer
+│   ├── node3_ivr_navigation.py     # IVR navigation anomaly
+│   ├── node4_agent_handoff.py     # alert generation + the HITL pause point
+│   ├── node5_auth_challenge.py     # OTP / step-up auth (fires only on stepup)
+│   └── node7_intelligence.py       # leadership log + loss-avoidance summary
+├── audio/                          # 5 scenario clips + customer voiceprint
 ├── requirements.txt
-├── .env.example        # Template for ANTHROPIC_API_KEY (only needed for graph.py)
+├── PROJECT_NOTES.md                # Living log of architecture decisions
+├── JPM_DEMO_SETUP.md               # Walkthrough script for the JPM pitch
 └── README.md
 ```
-
-`app.py` is fully self-contained — it imports `graph.py` only as a soft dependency and falls back gracefully if missing.
-
----
-
-## Optional: The LangGraph Pipeline
-
-`graph.py` and `agents/` implement the same 6-stage pipeline as a real LangGraph flow with Anthropic-powered agents, mapped to the Future-State Journey:
-
-```
-Voice Cloning → IVR Entry → IVR Navigation → Agent Handoff → Auth Challenge → Intelligence
-```
-
-To experiment with it locally, copy `.env.example → .env`, set `ANTHROPIC_API_KEY`, and import `build_graph()` from `graph.py`. The current `app.py` doesn't call it — the dashboard runs entirely on hardcoded scenario data so the demo is fast and offline.
 
 ---
 
 ## Tech Stack
 
-- **Streamlit** — UI + animation loop
-- **LangGraph + Anthropic** — optional pipeline (not exercised by the demo)
-- **ElevenLabs** — used once to render scenario audio (not needed at runtime)
+- **Streamlit** — dashboard UI + animation
+- **LangGraph + MemorySaver** — pipeline orchestration with durable pause/resume
+- **transformers / torch** — Wav2Vec2 deepfake classifier
+- **SpeechBrain** — ECAPA-TDNN speaker verification
+- **librosa** — audio I/O + classical pitch tracking
+- **Anthropic Claude** *(optional)* — alert-text generation inside graph nodes
+
+---
+
+## What's Real vs What's Mocked
+
+For full transparency:
+
+| Component | Status |
+|---|---|
+| Speaker Match meter | Real — ECAPA on the actual audio |
+| Voice Risk meter | Real — Wav2Vec2 + librosa F0 on the actual audio |
+| Combined verdict | Real — derived from the two signals via the formula above |
+| LangGraph pipeline pause/resume | Real — `interrupt_after` + `MemorySaver`, button click drives `update_state` |
+| Reviewer audit log | Real — session-scoped, persists button clicks |
+| Behavior Risk + Agent Suspicion meters | Scripted per scenario (downstream pipeline stages not yet wired to real signals) |
+| Caller context tile (claimed identity, account, transaction) | Scripted — there's no real CRM behind it |
+| Telephony / SIP / RTP integration | Not present — calls are file playback, not live phone |
+
+Voice analysis is fully model-driven; the pipeline orchestration around it (IVR analysis, CRM integration, telephony) is the production-engineering work that follows the pitch.
 
 ---
 
 ## Disclaimer
 
-VoiceGuard AI is a **prototype / educational demo**. Scenario data, scores, and verdicts are hand-tuned for illustration. Do not use it as-is for production fraud decisions.
+VoiceGuard AI is a research demo. The voice-analysis path is real and reproducible, but production deployment would need a labeled corpus for cost-aware threshold calibration, telephony integration, a real customer-data system, and continuous model evaluation as attackers update their tools.
