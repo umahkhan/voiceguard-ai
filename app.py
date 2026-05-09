@@ -81,6 +81,27 @@ HIGH_FG, HIGH_BG = "#c81e1e", "#fee2e2"
 #     `fallback_audio` if the preferred file isn't recorded yet
 # ---------------------------------------------------------------------------
 SCENARIOS: dict[str, dict] = {
+    "Umair (real call)": {
+        "spectral": 0.05, "prosody": 0.05, "behavior": 0.10, "conf": 0.10,
+        "audio": "customer_voiceprint_umair_real_call.m4a",
+        "fallback_audio": "customer_voiceprint_umair.m4a",
+        "caller_id":      "+1 212-555-0199",
+        "claimed_name":   "Umair (registered customer)",
+        "account_suffix": "0042",
+        "txn_type":       "Statement question · address update",
+        "txn_amount":     0,
+        "txn_destination":"—",
+        "prior_calls_30d": 6,
+        "ivr_path":       "Self-service first, then agent (typical pattern)",
+        "loss_avoidance": 0,
+        "narrative": (
+            "Legitimate inbound call from the registered customer. "
+            "Voiceprint match on the same speaker, different content. "
+            "Sanity check that the system passes legitimate calls "
+            "cleanly — the false-positive cost story for JPM."
+        ),
+        "expected": "PASS",
+    },
     "Umair Spoofed": {
         "spectral": 0.55, "prosody": 0.45, "behavior": 0.50, "conf": 0.60,
         "audio": "customer_voiceprint_umair_spoofed.mp3",
@@ -100,6 +121,48 @@ SCENARIOS: dict[str, dict] = {
             "is the failsafe."
         ),
         "expected": "FLAG",
+    },
+    "Umair Spoofed — Urgent Script": {
+        "spectral": 0.55, "prosody": 0.45, "behavior": 0.65, "conf": 0.65,
+        "audio": "customer_voiceprint_urgentcall_spoof_umair.mp3",
+        "caller_id":      "+1 415-555-0144",
+        "claimed_name":   "Umair (claimed)",
+        "account_suffix": "0042",
+        "txn_type":       "Emergency wire transfer",
+        "txn_amount":     50000,
+        "txn_destination":"new external beneficiary (first time)",
+        "prior_calls_30d": 0,
+        "ivr_path":       "Direct-to-agent (skipped self-service); urgent tone",
+        "loss_avoidance": 50000,
+        "narrative": (
+            "Same AI-clone threat as Umair Spoofed, but the attacker "
+            "had the clone read an urgent fraud script — large wire to "
+            "a new beneficiary, time pressure, willingness to authorize "
+            "anything. Tests whether the urgency markers add anything "
+            "to detection beyond the underlying clone."
+        ),
+        "expected": "FLAG",
+    },
+    "Robocall claiming to be Umair": {
+        "spectral": 0.94, "prosody": 0.91, "behavior": 0.89, "conf": 0.94,
+        "audio": "robocall_umair.wav",
+        "caller_id":      "+1 800-555-0123",
+        "claimed_name":   "Umair (claimed by bot)",
+        "account_suffix": "0042",
+        "txn_type":       "Account verification request",
+        "txn_amount":     0,
+        "txn_destination":"—",
+        "prior_calls_30d": 4,
+        "ivr_path":       "Sub-second key presses, no human pauses",
+        "loss_avoidance": 87000,
+        "narrative": (
+            "Crude TTS robocall reading Umair's enrollment script. "
+            "Both signals trip — speaker match catches the voiceprint "
+            "mismatch, voice-risk catches the obvious synthesis. The "
+            "easy case, but real and worth showing alongside the "
+            "harder ElevenLabs spoof."
+        ),
+        "expected": "BLOCK",
     },
 }
 
@@ -768,7 +831,6 @@ def render_header() -> None:
         '<div class="vg-header">'
         '<div>'
         '<div class="vg-h-title">VoiceGuard AI · Fraud Operations Dashboard</div>'
-        '<div class="vg-h-sub">Real-time deepfake &amp; voice-clone detection · Human-in-the-loop reviewer console</div>'
         '</div>'
         f'<div class="vg-h-meta">Session #{session_label}</div>'
         '</div>'
@@ -1224,7 +1286,6 @@ def render_live_simulation() -> dict:
 
         # ─── Caller Audio Under Test — orange "under test" dot ───────
         st.markdown("##### 🟠  Caller Audio Under Test")
-        st.caption("The audio that gets compared against the voiceprint above.")
         st.selectbox(
             "Caller audio",
             _scenario_names() if has_reg else ["— voiceprint missing —"],
@@ -1245,8 +1306,6 @@ def render_live_simulation() -> dict:
 
         if st.session_state.get("live_mode_error"):
             st.caption(f"⚠ {st.session_state['live_mode_error']}")
-
-        st.caption("ℹ️  Speaker Match compares the voiceprint above against whichever audio is selected.")
 
         # ─── Connect ─────────────────────────────────────────────────
         connect_disabled = not has_reg
