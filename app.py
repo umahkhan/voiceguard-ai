@@ -1665,10 +1665,8 @@ def render_business_case() -> None:
         <div style='background:{NAVY_TOP};color:#fff;padding:32px 36px;
         border-radius:6px;margin-top:8px;margin-bottom:14px;
         border-left:6px solid {RED};'>
-          <div style='font-size:13px;letter-spacing:1.6px;text-transform:uppercase;
-          color:#9bb5d4;font-weight:700;'>JPMorgan Chase &amp; Co. · Team Kobe</div>
           <div style='font-size:38px;font-weight:900;line-height:1.1;
-          margin-top:10px;letter-spacing:-0.5px;'>A New Kind of Attacker Is Calling Your Bank.</div>
+          letter-spacing:-0.5px;'>A New Kind of Attacker Is Calling Your Bank.</div>
           <div style='font-size:18px;color:#cbd5e1;margin-top:14px;
           line-height:1.5;font-weight:400;max-width:920px;'>
             AI-generated voice agents are impersonating real customers —
@@ -1924,103 +1922,198 @@ def render_business_case() -> None:
     )
 
     # ─────────────────────────────────────────────────────────────────
-    # Section 4 — Journey Map (current state vs. where we intervene)
+    # Section 4 — VoiceGuard Pipeline (LangGraph + HITL)
     # ─────────────────────────────────────────────────────────────────
     st.markdown("<div style='height:24px;'></div>", unsafe_allow_html=True)
     st.markdown(
         f"<div style='font-size:11px;color:{MUTED};letter-spacing:1.6px;"
-        f"text-transform:uppercase;font-weight:700;'>04 · Journey Map</div>"
+        f"text-transform:uppercase;font-weight:700;'>04 · The Pipeline</div>"
         f"<h2 style='font-size:30px;font-weight:900;color:{NAVY_TOP};"
-        f"font-family:Georgia,serif;margin:4px 0 4px 0;'>How the Attack Unfolds — and Where We Intervene</h2>"
+        f"font-family:Georgia,serif;margin:4px 0 4px 0;'>What Happens When a Call Comes In</h2>"
         f"<div style='font-size:14px;color:{MUTED};font-style:italic;"
-        f"margin-bottom:14px;'>The current bank stack fails at every stage. VoiceGuard shifts detection to Stage 1.</div>",
+        f"margin-bottom:16px;'>"
+        f"Six LangGraph stages. The reviewer is the decision authority — their click "
+        f"resumes the graph and routes one of three ways."
+        f"</div>",
         unsafe_allow_html=True,
     )
 
-    stages = [
-        ("1", "Voice Cloning",     "Attacker acquires<br>3–5 sec of audio",       "No detection<br>in place",                          "Not yet<br>involved",                            "blue"),
-        ("2", "IVR Bypass",        "Synthetic voice<br>calls the bank",           "<b style='color:#c81e1e;'>IVR accepts clone<br>as authentic ✗</b>", "Not yet<br>involved",                  "blue"),
-        ("3", "Biometric Defeat",  "Cloned voice passes<br>biometric verification","<b style='color:#c81e1e;'>Voice biometrics<br>accepts clone ✗</b>","Not yet<br>involved",               "blue"),
-        ("4", "Data Harvest",      "AI bot extracts<br>account info via menu",    "Provides account<br>data to caller",                "Not yet<br>involved",                            "blue"),
-        ("5", "Agent Manipulation","Bot reaches live agent,<br>impersonates customer","Routes call<br>normally",                       "<b style='color:#c81e1e;'>Cannot detect AI voice ✗<br>24.5% catch rate</b>", "red"),
-        ("6", "Account Takeover",  "Attacker gains full<br>account control",       "<b style='color:#c81e1e;'>Processes reset, unlock,<br>or transfer ✗</b>", "<b style='color:#c81e1e;'>Fraud found only<br>after the fact ✗</b>", "red"),
+    # ── Pre-human flow: stages 1–4 ─────────────────────────────────
+    pre = [
+        ("1", "Voice Cloning Detector",
+         "ML inference",
+         "<b>ECAPA-TDNN</b> speaker match · "
+         "<b>Wav2Vec2</b> deepfake classifier · "
+         "<b>librosa F0</b> prosody",
+         "Outputs: <code>Speaker Match</code> · <code>Voice Risk</code>",
+         NAVY),
+        ("2", "IVR Entry",
+         "Defense 1 · automated",
+         "Combines voice signals into <code>entry_confidence</code>. "
+         "Routes high-confidence calls fast-track.",
+         "",
+         NAVY),
+        ("3", "IVR Navigation",
+         "Defense 2 · conditional",
+         "Runs only when entry_confidence ≤ 0.8. Checks for "
+         "bot-like timing patterns.",
+         "",
+         NAVY),
+        ("4", "Agent Handoff",
+         "Defense 3 · prepares alert",
+         "Computes <code>agent_confidence</code>, generates the "
+         "alert message for the reviewer.",
+         "<b style='color:#b45309;'>⏸ Pipeline pauses here · "
+         "<code>interrupt_after</code></b>",
+         AMBER),
     ]
-    # Render journey map as a 4-column grid (header column + 6 stage columns)
-    # First row: stage headers
-    cols = st.columns([1.2] + [1] * 6, gap="small")
-    cols[0].markdown(
-        f"<div style='background:{NAVY_TOP};color:#fff;padding:10px;"
-        f"border-radius:4px;height:100%;'></div>",
+    cols = st.columns(4, gap="small")
+    for col, (num, title, sub, body, foot, accent) in zip(cols, pre):
+        with col:
+            foot_html = (
+                f"<div style='font-size:12px;margin-top:9px;line-height:1.4;"
+                f"border-top:1px dashed {BORDER};padding-top:8px;color:{INK};'>{foot}</div>"
+                if foot else ""
+            )
+            st.markdown(
+                f"""
+                <div style='background:#fff;border:1px solid {BORDER};
+                border-top:4px solid {accent};border-radius:6px;
+                padding:14px 16px;height:100%;
+                box-shadow:0 1px 3px rgba(0,0,0,0.05);'>
+                  <div style='display:flex;align-items:center;gap:8px;'>
+                    <div style='background:{accent};color:#fff;
+                    border-radius:50%;width:26px;height:26px;
+                    line-height:26px;text-align:center;font-size:12px;
+                    font-weight:900;'>{num}</div>
+                    <div style='font-size:14px;font-weight:800;color:{NAVY_TOP};
+                    line-height:1.2;'>{title}</div>
+                  </div>
+                  <div style='font-size:11px;color:{MUTED};
+                  letter-spacing:0.6px;text-transform:uppercase;
+                  font-weight:700;margin-top:6px;'>{sub}</div>
+                  <div style='font-size:13px;color:{INK};margin-top:8px;
+                  line-height:1.5;'>{body}</div>
+                  {foot_html}
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+    # ── Down arrow into the human review card ─────────────────────
+    st.markdown(
+        f"<div style='text-align:center;font-size:24px;color:{AMBER};"
+        f"line-height:1;margin:8px 0 4px 0;'>↓</div>",
         unsafe_allow_html=True,
     )
-    for col, (num, name, _, _, _, color) in zip(cols[1:], stages):
-        bg = NAVY if color == "blue" else RED
-        col.markdown(
-            f"<div style='background:{bg};color:#fff;padding:10px 12px;"
-            f"border-radius:4px;height:100%;text-align:center;'>"
-            f"<div style='display:inline-block;background:#fff;color:{bg};"
-            f"width:24px;height:24px;line-height:24px;border-radius:50%;"
-            f"font-size:13px;font-weight:900;'>{num}</div>"
-            f"<div style='font-size:13px;font-weight:800;margin-top:5px;'>{name}</div></div>",
-            unsafe_allow_html=True,
-        )
-    # Three swim lanes: Attacker / Bank System / Live Agent
-    lane_styles = [
-        ("ATTACKER",   NAVY_TOP,  "#fff",     "#f5f6f8"),
-        ("BANK SYSTEM",ACCENT,    "#fff",     "#eff6ff"),
-        ("LIVE AGENT", "#5b6ec1", "#fff",     "#f0f2fa"),
+
+    # ── Human reviewer decision card ──────────────────────────────
+    st.markdown(
+        f"""
+        <div style='background:#fffbeb;border:2px solid {AMBER};
+        border-radius:8px;padding:18px 22px;
+        box-shadow:0 2px 8px rgba(180,83,9,0.15);'>
+          <div style='display:flex;align-items:center;gap:14px;
+          flex-wrap:wrap;'>
+            <div style='background:{AMBER};color:#fff;
+            font-size:18px;font-weight:900;padding:8px 14px;
+            border-radius:6px;letter-spacing:0.5px;'>👤 HUMAN REVIEWER</div>
+            <div style='font-size:14px;color:{INK};line-height:1.5;flex:1;
+            min-width:280px;'>
+              Sees the alert, signals, and caller context. Picks one of three
+              actions — the click writes <code>human_decision</code> to graph
+              state and resumes execution via <code>invoke(None, config)</code>.
+            </div>
+          </div>
+          <div style='display:grid;grid-template-columns:repeat(3,1fr);
+          gap:10px;margin-top:14px;'>
+            <div style='background:#dcfce7;border:1.5px solid #4ade80;
+            border-radius:5px;padding:10px 14px;'>
+              <div style='font-size:12px;color:#14532d;font-weight:900;
+              letter-spacing:0.7px;'>✓ APPROVE</div>
+              <div style='font-size:12.5px;color:#14532d;margin-top:4px;
+              line-height:1.45;'>case cleared, routes directly to Stage 6 (Intelligence)</div>
+            </div>
+            <div style='background:#fef3c7;border:1.5px solid #f59e0b;
+            border-radius:5px;padding:10px 14px;'>
+              <div style='font-size:12px;color:#78350f;font-weight:900;
+              letter-spacing:0.7px;'>⚠ STEP-UP AUTH</div>
+              <div style='font-size:12.5px;color:#78350f;margin-top:4px;
+              line-height:1.45;'>routes through Stage 5 (Auth Challenge) before clearing</div>
+            </div>
+            <div style='background:#fee2e2;border:1.5px solid #ef4444;
+            border-radius:5px;padding:10px 14px;'>
+              <div style='font-size:12px;color:#7f1d1d;font-weight:900;
+              letter-spacing:0.7px;'>✗ BLOCK & ESCALATE</div>
+              <div style='font-size:12.5px;color:#7f1d1d;margin-top:4px;
+              line-height:1.45;'>transaction blocked, case logged at Stage 6</div>
+            </div>
+          </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    st.markdown(
+        f"<div style='text-align:center;font-size:24px;color:{NAVY};"
+        f"line-height:1;margin:8px 0 4px 0;'>↓</div>",
+        unsafe_allow_html=True,
+    )
+
+    # ── Post-human: stages 5 and 6 ────────────────────────────────
+    post = [
+        ("5", "Auth Challenge",
+         "Defense 4 · conditional",
+         "Runs only on <b>Step-Up</b>. Sends OTP to the customer's "
+         "registered device. Attacker can't complete it.",
+         NAVY),
+        ("6", "Intelligence",
+         "Leadership log · always runs",
+         "Loss avoidance + attack-vector classification + executive "
+         "summary written to <code>intelligence_log</code>.",
+         NAVY),
     ]
-    for lane_idx, (lane_name, lane_bg, lane_fg, cell_bg) in enumerate(lane_styles):
-        cols = st.columns([1.2] + [1] * 6, gap="small")
-        cols[0].markdown(
-            f"<div style='background:{lane_bg};color:{lane_fg};padding:18px 12px;"
-            f"border-radius:4px;height:100%;text-align:center;"
-            f"font-size:12px;font-weight:900;letter-spacing:1.4px;'>"
-            f"{lane_name}</div>",
-            unsafe_allow_html=True,
-        )
-        for col, stage in zip(cols[1:], stages):
-            num, name, attacker_text, system_text, agent_text, _ = stage
-            text = [attacker_text, system_text, agent_text][lane_idx]
-            col.markdown(
-                f"<div style='background:{cell_bg};border:1px solid {BORDER};"
-                f"padding:12px;border-radius:4px;height:100%;font-size:12.5px;"
-                f"color:{INK};line-height:1.5;'>{text}</div>",
+    cols = st.columns(2, gap="medium")
+    for col, (num, title, sub, body, accent) in zip(cols, post):
+        with col:
+            st.markdown(
+                f"""
+                <div style='background:#fff;border:1px solid {BORDER};
+                border-top:4px solid {accent};border-radius:6px;
+                padding:14px 16px;height:100%;
+                box-shadow:0 1px 3px rgba(0,0,0,0.05);'>
+                  <div style='display:flex;align-items:center;gap:8px;'>
+                    <div style='background:{accent};color:#fff;
+                    border-radius:50%;width:26px;height:26px;
+                    line-height:26px;text-align:center;font-size:12px;
+                    font-weight:900;'>{num}</div>
+                    <div style='font-size:14px;font-weight:800;color:{NAVY_TOP};
+                    line-height:1.2;'>{title}</div>
+                  </div>
+                  <div style='font-size:11px;color:{MUTED};
+                  letter-spacing:0.6px;text-transform:uppercase;
+                  font-weight:700;margin-top:6px;'>{sub}</div>
+                  <div style='font-size:13px;color:{INK};margin-top:8px;
+                  line-height:1.5;'>{body}</div>
+                </div>
+                """,
                 unsafe_allow_html=True,
             )
 
     st.markdown(
-        f"<div style='background:{RED};color:#fff;padding:11px 18px;"
-        f"border-radius:4px;margin-top:10px;font-size:14px;font-weight:700;'>"
-        f"⚠ <b>Today:</b> No real-time detection at any stage. Synthetic "
-        f"voices pass through IVR, biometrics, and live agents undetected "
-        f"until the damage is done.</div>",
+        f"""
+        <div style='background:#eff6ff;border-left:4px solid {ACCENT};
+        border-radius:4px;padding:12px 18px;margin-top:14px;
+        font-size:13.5px;color:{INK};line-height:1.55;'>
+          <b style='color:{NAVY};'>Why this matters:</b> today's bank stack has
+          no real-time AI-voice detection at <i>any</i> of these stages. VoiceGuard
+          adds the ML signals at Stage 1 and the explicit human checkpoint at
+          Stage 4 — <b>before</b> any account action is processed. The reviewer's
+          decision drives the rest of the graph; the click isn't cosmetic.
+        </div>
+        """,
         unsafe_allow_html=True,
     )
-
-    # "With VoiceGuard" overlay — where detection happens
-    intercepts = [
-        ("1", "Voice Cloning", "off-platform — no signal"),
-        ("2", "IVR Bypass",    "<b>✓ Speaker Match</b> + <b>Voice Risk</b> fire here"),
-        ("3", "Biometric Defeat", "<b>✓</b> ECAPA voiceprint catches non-customer clones"),
-        ("4", "Data Harvest",  "<b>✓</b> behavior signal flags bot-like IVR patterns"),
-        ("5", "Agent Manipulation", "<b>⏸ Human review</b> — reviewer sees alert before any action"),
-        ("6", "Account Takeover", "<b>✓</b> step-up auth or block, before transfer"),
-    ]
-    cols = st.columns([1.2] + [1] * 6, gap="small")
-    cols[0].markdown(
-        f"<div style='background:#16a34a;color:#fff;padding:18px 12px;"
-        f"border-radius:4px;height:100%;text-align:center;font-size:12px;"
-        f"font-weight:900;letter-spacing:1.4px;'>WITH<br>VOICEGUARD</div>",
-        unsafe_allow_html=True,
-    )
-    for col, (num, name, action) in zip(cols[1:], intercepts):
-        col.markdown(
-            f"<div style='background:#dcfce7;border:1px solid #86efac;"
-            f"border-radius:4px;padding:10px 12px;height:100%;"
-            f"font-size:12px;color:#14532d;line-height:1.5;'>{action}</div>",
-            unsafe_allow_html=True,
-        )
 
     # ─────────────────────────────────────────────────────────────────
     # Transition CTA

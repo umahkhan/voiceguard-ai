@@ -16,9 +16,18 @@ def agent_handoff_agent(state: VoiceGuardState) -> VoiceGuardState:
     entry_conf = float(state.get("ivr_entry_confidence", 0.0))
     nav_score = float(state.get("ivr_nav_anomaly_score", entry_conf))
 
-    # If Stage 3 was skipped (fast-track from high-confidence Stage 2) we still
-    # weight the entry confidence heavier — it is the strongest signal we have.
-    agent_confidence = round(0.5 * entry_conf + 0.5 * nav_score, 3)
+    # Combine all available signals into agent_confidence — same logic the
+    # dashboard uses, applied here so the graph itself produces the verdict
+    # rather than relying on app.py to do it externally.
+    similarity = state.get("speaker_similarity")
+    if similarity is not None:
+        # Map low similarity → high mismatch risk (capped at FLAG band)
+        mismatch_norm = max(0.0, min(1.0, (0.35 - float(similarity)) / 0.10))
+        mismatch_risk = mismatch_norm * 0.65
+    else:
+        mismatch_risk = 0.0
+    deepfake_risk = max(entry_conf, nav_score)
+    agent_confidence = round(max(deepfake_risk, mismatch_risk), 3)
     step_up = agent_confidence >= 0.5
 
     caller = state.get("caller_id", "UNKNOWN")
