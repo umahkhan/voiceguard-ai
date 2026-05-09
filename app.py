@@ -1706,10 +1706,11 @@ def render_business_case() -> None:
     # ─────────────────────────────────────────────────────────────────
     st.markdown("<div style='height:18px;'></div>", unsafe_allow_html=True)
     st.markdown(
-        f"<div style='font-size:11px;color:{MUTED};letter-spacing:1.6px;"
-        f"text-transform:uppercase;font-weight:700;'>01 · The Problem</div>"
-        f"<h2 style='font-size:30px;font-weight:900;color:{NAVY_TOP};"
-        f"font-family:Georgia,serif;margin:4px 0 14px 0;'>"
+        f"<div style='font-size:14px;color:{ACCENT};letter-spacing:2.2px;"
+        f"text-transform:uppercase;font-weight:900;border-left:5px solid {ACCENT};"
+        f"padding-left:12px;'>01 · The Problem</div>"
+        f"<h2 style='font-size:42px;font-weight:900;color:{NAVY_TOP};"
+        f"font-family:Georgia,serif;margin:8px 0 18px 0;line-height:1.15;'>"
         f"Banks built contact centers to serve people. That assumption is now the vulnerability.</h2>",
         unsafe_allow_html=True,
     )
@@ -1778,10 +1779,12 @@ def render_business_case() -> None:
     # ─────────────────────────────────────────────────────────────────
     st.markdown("<div style='height:24px;'></div>", unsafe_allow_html=True)
     st.markdown(
-        f"<div style='font-size:11px;color:{MUTED};letter-spacing:1.6px;"
-        f"text-transform:uppercase;font-weight:700;'>02 · Gap Analysis</div>"
-        f"<h2 style='font-size:30px;font-weight:900;color:{NAVY_TOP};"
-        f"font-family:Georgia,serif;margin:4px 0 14px 0;'>Why Today's Tools Fail</h2>",
+        f"<div style='font-size:14px;color:{ACCENT};letter-spacing:2.2px;"
+        f"text-transform:uppercase;font-weight:900;border-left:5px solid {ACCENT};"
+        f"padding-left:12px;'>02 · Gap Analysis</div>"
+        f"<h2 style='font-size:42px;font-weight:900;color:{NAVY_TOP};"
+        f"font-family:Georgia,serif;margin:8px 0 18px 0;line-height:1.15;'>"
+        f"Why Today's Tools Fail</h2>",
         unsafe_allow_html=True,
     )
 
@@ -1835,10 +1838,12 @@ def render_business_case() -> None:
     # ─────────────────────────────────────────────────────────────────
     st.markdown("<div style='height:24px;'></div>", unsafe_allow_html=True)
     st.markdown(
-        f"<div style='font-size:11px;color:{MUTED};letter-spacing:1.6px;"
-        f"text-transform:uppercase;font-weight:700;'>03 · Our Approach</div>"
-        f"<h2 style='font-size:30px;font-weight:900;color:{NAVY_TOP};"
-        f"font-family:Georgia,serif;margin:4px 0 14px 0;'>Two ML Signals + Human-in-the-Loop</h2>",
+        f"<div style='font-size:14px;color:{ACCENT};letter-spacing:2.2px;"
+        f"text-transform:uppercase;font-weight:900;border-left:5px solid {ACCENT};"
+        f"padding-left:12px;'>03 · Our Approach</div>"
+        f"<h2 style='font-size:42px;font-weight:900;color:{NAVY_TOP};"
+        f"font-family:Georgia,serif;margin:8px 0 18px 0;line-height:1.15;'>"
+        f"Two ML Signals + Human-in-the-Loop</h2>",
         unsafe_allow_html=True,
     )
 
@@ -1926,12 +1931,14 @@ def render_business_case() -> None:
     # ─────────────────────────────────────────────────────────────────
     st.markdown("<div style='height:24px;'></div>", unsafe_allow_html=True)
     st.markdown(
-        f"<div style='font-size:11px;color:{MUTED};letter-spacing:1.6px;"
-        f"text-transform:uppercase;font-weight:700;'>04 · The Pipeline</div>"
-        f"<h2 style='font-size:30px;font-weight:900;color:{NAVY_TOP};"
-        f"font-family:Georgia,serif;margin:4px 0 4px 0;'>What Happens When a Call Comes In</h2>"
-        f"<div style='font-size:14px;color:{MUTED};font-style:italic;"
-        f"margin-bottom:16px;'>"
+        f"<div style='font-size:14px;color:{ACCENT};letter-spacing:2.2px;"
+        f"text-transform:uppercase;font-weight:900;border-left:5px solid {ACCENT};"
+        f"padding-left:12px;'>04 · The Pipeline</div>"
+        f"<h2 style='font-size:42px;font-weight:900;color:{NAVY_TOP};"
+        f"font-family:Georgia,serif;margin:8px 0 6px 0;line-height:1.15;'>"
+        f"What Happens When a Call Comes In</h2>"
+        f"<div style='font-size:15px;color:{MUTED};font-style:italic;"
+        f"margin-bottom:18px;'>"
         f"Six LangGraph stages. The reviewer is the decision authority — their click "
         f"resumes the graph and routes one of three ways."
         f"</div>",
