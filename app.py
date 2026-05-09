@@ -90,9 +90,15 @@ SCENARIOS: dict[str, dict] = {
         ),
         "expected": "PASS",
     },
-    "2 · AI Voice Clone (ElevenLabs)": {
+    "2 · AI Voice Clone of Customer": {
         "spectral": 0.55, "prosody": 0.45, "behavior": 0.50, "conf": 0.60,
-        "audio": "clean.mp3",
+        # Preferred: AI clone of the enrolled customer's actual voice
+        # (uploaded via the dashboard's Demo Audio panel). Falls back to
+        # an ElevenLabs sample of a different speaker so the demo still
+        # works pre-upload — that fallback exercises speaker mismatch
+        # rather than the harder clone-of-self case.
+        "audio": "clone_of_customer.wav",
+        "fallback_audio": "clean.mp3",
         "caller_id":      "+1 415-555-0144",
         "claimed_name":   "Registered Customer (claimed)",
         "account_suffix": "0042",
@@ -103,10 +109,13 @@ SCENARIOS: dict[str, dict] = {
         "ivr_path":       "Direct-to-agent (skipped self-service)",
         "loss_avoidance": 27500,
         "narrative": (
-            "Voice sounds natural — modern neural TTS. Speaker match "
-            "is the load-bearing signal here: the deepfake classifier "
-            "may not catch ElevenLabs alone, but the voiceprint does "
-            "not match the enrolled customer."
+            "AI clone of the enrolled customer's voice (uploaded via "
+            "the Demo Audio panel — generated externally, e.g. by "
+            "ElevenLabs voice-cloning the enrollment sample). Tests "
+            "the hardest case: a deepfake that may pass speaker match. "
+            "If speaker match clears it, voice-risk artifacts are the "
+            "backstop; if both clear, defense-in-depth (step-up auth) "
+            "is the failsafe."
         ),
         "expected": "FLAG",
     },
@@ -304,16 +313,22 @@ def _scenario_data(name: str) -> dict:
 
 
 def _scenario_audio_path(name: str, sc: dict) -> str | None:
-    """Resolve the audio file path for a scenario. Three rules:
-      1. Live mic → uses the live_mic_audio_path session state.
-      2. requires_registered_voice → uses registered_voice_path.
-      3. Else → looks for sc['audio'] in AUDIO_DIR; falls back to
-         sc['fallback_audio'] if the preferred file isn't recorded yet.
+    """Resolve the audio file path for a scenario.
+
+      1. Live mic → live_mic_audio_path
+      2. requires_registered_voice → registered_voice_path
+      3. Session-level override map first (e.g. user uploaded a custom
+         clone via the Demo Audio panel) → keyed by scenario name
+      4. Else look for sc['audio'] in AUDIO_DIR; fall back to
+         sc['fallback_audio'] if the preferred file isn't present yet.
     """
     if name == LIVE_MIC_SCENARIO:
         return st.session_state.get("live_mic_audio_path") or None
     if sc.get("requires_registered_voice"):
         return st.session_state.get("registered_voice_path") or None
+    overrides = st.session_state.get("scenario_audio_overrides") or {}
+    if overrides.get(name):
+        return overrides[name]
     preferred = sc.get("audio")
     if preferred:
         p = AUDIO_DIR / preferred
@@ -328,10 +343,13 @@ def _scenario_audio_path(name: str, sc: dict) -> str | None:
 
 
 def _is_using_fallback_audio(name: str, sc: dict) -> bool:
-    """True when the scenario is playing fallback audio because the
-    preferred recording isn't in audio/ yet — used to surface a small
-    'demo placeholder' caption to the operator."""
+    """True when the scenario is playing fallback audio because neither
+    a session override nor the preferred file is available — used to
+    surface a small 'demo placeholder' caption to the operator."""
     if name == LIVE_MIC_SCENARIO or sc.get("requires_registered_voice"):
+        return False
+    overrides = st.session_state.get("scenario_audio_overrides") or {}
+    if overrides.get(name):
         return False
     preferred = sc.get("audio")
     fallback = sc.get("fallback_audio")
@@ -1253,28 +1271,23 @@ def render_live_simulation() -> dict:
     has_reg = bool(st.session_state.get("registered_voice_path"))
     is_live_mic = st.session_state.get("preset_choice") == LIVE_MIC_SCENARIO
     has_mic_clip = bool(st.session_state.get("live_mic_audio_path"))
+    overrides = st.session_state.get("scenario_audio_overrides") or {}
+    has_clone = bool(overrides.get("2 · AI Voice Clone of Customer"))
 
     with left:
         incoming_slot = st.empty()
 
-        # ─────────────────────────────────────────────────────────────
-        # Step 1 — Enroll customer voice (always required)
-        # ─────────────────────────────────────────────────────────────
-        st.markdown(
-            f"### {'✓' if has_reg else '①'}  Step 1 · Enroll Customer Voice"
-        )
+        # ─── Customer Voiceprint ─────────────────────────────────────
+        dot_reg = "🟢" if has_reg else "⚪"
+        st.markdown(f"##### {dot_reg}  Customer Voiceprint")
         method = st.radio(
             "Enrollment method",
-            ["Record (recommended)", "Upload file"],
+            ["Record", "Upload file"],
             key="enrollment_method",
             horizontal=True,
             label_visibility="collapsed",
-            help=(
-                "Recording with the browser mic gives the best live-call "
-                "match because both clips use the same device and codec."
-            ),
         )
-        if method == "Record (recommended)":
+        if method == "Record":
             ref_audio = st.audio_input(
                 "Record customer voice",
                 key="registered_voice_recorder",
@@ -1289,21 +1302,15 @@ def render_live_simulation() -> dict:
                 if st.session_state.get("registered_voice_path") != str(temp_path):
                     st.session_state["registered_voice_path"] = str(temp_path)
                     _reset_call()
-                st.caption(f"Enrolled (recorded) · {len(content) / 1024:0.0f} KB")
+                st.caption(f"Active · {len(content) / 1024:0.0f} KB")
             elif has_reg:
-                st.caption("Enrolled voiceprint loaded.")
+                st.caption("Active.")
         else:
             uploaded = st.file_uploader(
                 "Registered Customer Voice",
                 type=["wav", "mp3", "m4a", "flac"],
                 key="registered_voice_uploader",
                 label_visibility="collapsed",
-                help=(
-                    "Upload a 5–10s clip. Cross-device uploads (e.g. "
-                    "Voice Memos m4a vs browser mic) tend to score "
-                    "~0.20 lower on same-speaker match than matched "
-                    "recording conditions."
-                ),
             )
             if uploaded is not None:
                 content = uploaded.read()
@@ -1315,39 +1322,63 @@ def render_live_simulation() -> dict:
                 if st.session_state.get("registered_voice_path") != str(temp_path):
                     st.session_state["registered_voice_path"] = str(temp_path)
                     _reset_call()
-                st.caption(
-                    f"Enrolled (uploaded) · {Path(uploaded.name).name} · "
-                    f"{len(content) / 1024:0.0f} KB"
-                )
+                st.caption(f"Active · {Path(uploaded.name).name}")
             elif has_reg:
-                st.caption("Enrolled voiceprint loaded.")
+                st.caption("Active.")
 
-        # ─────────────────────────────────────────────────────────────
-        # Step 2 — Pick scenario (dimmed until Step 1 done)
-        # ─────────────────────────────────────────────────────────────
-        st.markdown(
-            f"### {'②' if has_reg else '·'}  Step 2 · Pick Scenario"
-            + ("" if has_reg else "  *(enroll first)*")
+        # ─── Demo Audio · AI clone of the customer's own voice ───────
+        dot_clone = "🟢" if has_clone else "⚪"
+        st.markdown(f"##### {dot_clone}  Demo Audio · AI Clone of Customer")
+        clone = st.file_uploader(
+            "Upload AI clone of customer voice",
+            type=["wav", "mp3", "m4a", "flac"],
+            key="clone_audio_uploader",
+            label_visibility="collapsed",
+            help=(
+                "Generate a clone of the enrolled customer's voice "
+                "externally (e.g. ElevenLabs voice-cloning) and upload "
+                "the result here. Powers Scenario 2 — the hardest case "
+                "for the system to catch. If empty, Scenario 2 falls "
+                "back to a generic ElevenLabs sample of a different "
+                "speaker."
+            ),
         )
+        if clone is not None:
+            content = clone.read()
+            h = hashlib.md5(content).hexdigest()[:12]
+            suffix = Path(clone.name).suffix.lower() or ".wav"
+            temp_path = Path(tempfile.gettempdir()) / f"voiceguard_clone_{h}{suffix}"
+            if not temp_path.exists():
+                temp_path.write_bytes(content)
+            ovr = dict(st.session_state.get("scenario_audio_overrides") or {})
+            if ovr.get("2 · AI Voice Clone of Customer") != str(temp_path):
+                ovr["2 · AI Voice Clone of Customer"] = str(temp_path)
+                st.session_state["scenario_audio_overrides"] = ovr
+                _reset_call()
+            st.caption(f"Loaded · {Path(clone.name).name}")
+            has_clone = True
+        elif has_clone:
+            st.caption("Loaded.")
+        else:
+            st.caption("None — Scenario 2 will use the fallback ElevenLabs sample.")
+
+        # ─── Active Scenario ─────────────────────────────────────────
+        st.markdown("##### Active Scenario")
         st.selectbox(
             "Scenario",
-            _scenario_names() if has_reg else ["(enroll a customer voice first)"],
+            _scenario_names() if has_reg else ["— enroll a voiceprint to begin —"],
             key="preset_choice",
             on_change=_reset_call,
             label_visibility="collapsed",
             disabled=not has_reg,
         )
 
-        # Live mic recorder — only visible when live-mic scenario picked
+        # Live-mic capture — only when the live-mic scenario is active
         if is_live_mic:
             mic_audio = st.audio_input(
                 "Record caller audio",
                 key="live_mic_recorder",
                 label_visibility="collapsed",
-                help=(
-                    "Speak as if you were the caller. Speaker match + "
-                    "synthesis detection both run against this recording."
-                ),
             )
             if mic_audio is not None:
                 content = mic_audio.getvalue()
@@ -1358,21 +1389,15 @@ def render_live_simulation() -> dict:
                 if st.session_state.get("live_mic_audio_path") != str(temp_path):
                     st.session_state["live_mic_audio_path"] = str(temp_path)
                     _reset_call()
-                st.caption(f"Recording captured · {len(content) / 1024:0.0f} KB")
+                st.caption(f"Captured · {len(content) / 1024:0.0f} KB")
                 has_mic_clip = True
             elif has_mic_clip:
-                st.caption("Previous recording loaded — record again to refresh.")
+                st.caption("Previous recording loaded.")
 
         if st.session_state.get("live_mode_error"):
             st.caption(f"⚠ {st.session_state['live_mode_error']}")
 
-        # ─────────────────────────────────────────────────────────────
-        # Step 3 — Connect (dimmed until prerequisites are met)
-        # ─────────────────────────────────────────────────────────────
-        st.markdown(
-            f"### {'③' if has_reg else '·'}  Step 3 · Connect"
-            + ("" if has_reg else "  *(enroll first)*")
-        )
+        # ─── Connect ─────────────────────────────────────────────────
         connect_disabled = (
             not has_reg
             or (is_live_mic and not has_mic_clip)
@@ -1382,7 +1407,7 @@ def render_live_simulation() -> dict:
             type="primary",
             disabled=connect_disabled,
             help=(
-                "Enroll a customer voice first" if not has_reg
+                "Enroll a customer voiceprint first" if not has_reg
                 else "Record audio first" if (is_live_mic and not has_mic_clip)
                 else None
             ),
@@ -1690,6 +1715,7 @@ def init_session() -> None:
     ss.setdefault("graph_state",   None)
     ss.setdefault("graph_thread_id", "")
     ss.setdefault("graph_error",   "")
+    ss.setdefault("scenario_audio_overrides", {})
 
 
 def main() -> None:

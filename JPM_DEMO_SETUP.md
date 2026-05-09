@@ -17,25 +17,43 @@ account, transaction in flight), and decides Approve / Step-Up Auth /
 Block. That decision actually drives a LangGraph pipeline that pauses at
 the human-review step and resumes downstream based on the call.
 
-## Pre-meeting prep — three audio files
+## Pre-meeting prep — three things to record / generate
 
-### 1. Your enrollment voice (done in the app)
+### 1. Your enrollment voice (in the dashboard)
 
-Open the dashboard, go to **Step 1 · Enroll Customer Voice**, pick
-**Record (recommended)**, hit the mic icon, and read aloud for 5–10
-seconds. Any sentence works; suggest something neutral like:
+In the **Customer Voiceprint** panel, pick **Record**, hit the mic
+icon, and read aloud for 5–10 seconds. Any sentence works; a neutral
+script is best:
 
 > *"This is John Smith calling from New York. My account number ends
 > in zero-zero-four-two."*
 
-This becomes the registered voiceprint. The dashboard uses it as the
-baseline for every call.
+This becomes the registered voiceprint — the baseline every scenario
+is compared against.
 
-### 2. A colleague's voice (file you drop into the repo)
+### 2. AI clone of your enrolled voice (uploaded into the dashboard)
 
-Have one other person read the **same sentence** for 5–10 seconds. They
-can use phone Voice Memos, laptop mic, anything — quality doesn't have
-to match perfectly.
+This is the *real* test. Generate a clone of your own voice using any
+voice-cloning tool (ElevenLabs free tier, Resemble.ai, or similar):
+
+1. Sign up for **ElevenLabs** (free tier is enough)
+2. Use **Voice Cloning → Instant Voice Clone**, upload the same
+   recording you used for enrollment (or a longer sample if available)
+3. Generate a 5–10 second clip of the clone reading something different,
+   e.g. *"I need to wire twenty-five thousand dollars to a new account."*
+4. Download the result, then drop it into the **Demo Audio · AI Clone of
+   Customer** uploader in the dashboard
+
+If you skip this step, Scenario 2 falls back to the existing
+`audio/clean.mp3` ElevenLabs sample — still a valid deepfake demo, but
+of a *different speaker*, which is the easier case (speaker match
+catches it). Uploading your own clone tests the harder case where the
+clone may pass speaker match.
+
+### 3. A colleague's voice (file you drop into the repo)
+
+One other person reads the **same sentence** as your enrollment, 5–10
+seconds. Phone Voice Memos / laptop mic / anything is fine.
 
 Save the file as:
 
@@ -43,27 +61,26 @@ Save the file as:
 audio/impersonator.wav
 ```
 
-(any of `.wav` / `.mp3` / `.m4a` is fine — just rename to
-`impersonator.<ext>` and update `SCENARIOS["3 · Real-Person Impersonator"]["audio"]`
-in `app.py` if you change the extension)
+(any of `.wav` / `.mp3` / `.m4a` is fine — rename and update
+`SCENARIOS["3 · Real-Person Impersonator"]["audio"]` in `app.py` if you
+use a different extension.)
 
-If you skip this step, scenario 3 falls back to using `borderline.mp3`
-as a placeholder — still demonstrates speaker mismatch, but you'd be
-saying "imagine this is a coworker" instead of actually showing one.
+If you skip this step, scenario 3 falls back to `borderline.mp3` as a
+placeholder.
 
-### 3. Already in the repo (no action needed)
+### Already in the repo (no action needed)
 
-- `audio/clean.mp3` — ElevenLabs sample. Used for the AI Voice Clone
-  scenario so JPM can literally hear what a current deepfake sounds like.
-- `audio/ai_voice.wav` — macOS `say` synthesizer. Used for the Robocall
-  scenario so they hear the obvious-bot case.
+- `audio/clean.mp3` — ElevenLabs sample of a different speaker. The
+  Scenario 2 fallback when no self-clone is uploaded.
+- `audio/ai_voice.wav` — macOS `say` synthesizer. Powers the Robocall
+  scenario.
 
 ## The 4 scenarios — what each one teaches JPM
 
 | # | Scenario | Audio | Verdict | Pitch point |
 |---|---|---|---|---|
 | 1 | Authenticated Customer | your enrollment | **PASS** | Legit calls go through with no friction. This is the false-positive cost story (19% of fraud cost is FPs at JPM today). |
-| 2 | AI Voice Clone (ElevenLabs) | `clean.mp3` | **FLAG** | Current deepfakes sound natural; synthesis classifiers alone miss them. Speaker match catches this. JPM will *hear* the deepfake. |
+| 2 | AI Voice Clone of Customer | clone of your enrolled voice (uploaded) — falls back to `clean.mp3` | **FLAG** (usually) | The hardest case: an AI clone of the *registered customer's actual voice*. May pass speaker match if the clone is good enough — voice-risk artifacts are the backstop. Either way teaches a layered-defense lesson. JPM literally hears what a clone of a known voice sounds like. |
 | 3 | Real-Person Impersonator | `impersonator.wav` | **FLAG** | A real human reading off a script. The case where synthesis detection is useless — biometrics carry the load. |
 | 4 | Robocall / Crude Bot | `ai_voice.wav` | **BLOCK** | Older TTS. Both signals trip; the easy case but real and worth showing. |
 | Live | Live Microphone Input | record on the spot | depends | "Try it now" — JPM speaks into the laptop, sees their own voice authenticate (or fail). The most visceral moment of the demo. |
@@ -83,13 +100,19 @@ saying "imagine this is a coworker" instead of actually showing one.
    Easy case. Both signals scream. Verdict: **BLOCK**. Click Block.
    Point: *"The trivial case — robocalls and crude synthesis. Solved."*
 
-4. **Scenario 2 · AI Voice Clone (ElevenLabs)** (2 min).
-   Audio plays — JPM *hears* a current-gen AI voice. Voice Risk meter
-   doesn't pick it up; Speaker Match does. Verdict: **FLAG**.
-   Point: *"This is the case a single deepfake classifier misses. ElevenLabs
-   is engineered to evade detection. But voiceprint comparison still works,
-   because synthesis-of-someone-else has a different voiceprint than the
-   enrolled customer."*
+4. **Scenario 2 · AI Voice Clone of Customer** (2 min).
+   Audio plays — JPM *hears* a deepfake of *the customer's own voice*.
+   Two cases:
+   - **If speaker match is high (clone fooled biometrics)**: point to
+     the Voice Risk meter and verdict — *"Even when the clone passes
+     biometrics, synthesis artifacts are the backstop. And if both
+     clear, defense in depth (step-up auth) catches it."*
+   - **If speaker match is low (clone didn't fool biometrics)**: point
+     to it directly — *"The clone sounds natural to a human ear, but
+     ECAPA picks up subtle differences in the voiceprint that even
+     ElevenLabs can't fully replicate. This is exactly the case a
+     synthesis-only detector would miss."*
+   Either outcome makes the layered-defense story.
 
 5. **Scenario 3 · Real-Person Impersonator** (1 min).
    Plays your colleague's recording. No synthesis at all — Voice Risk
