@@ -1645,6 +1645,514 @@ def init_session() -> None:
         ss["registered_voice_name"] = ""
 
 
+def render_business_case() -> None:
+    """Pre-demo "set the scene" tab.
+
+    Lays out the business problem, market data, primary user, solution
+    overview, competitive differentiation, and a current-state journey
+    map. Sourced from Team Kobe's Maker Day 2 deck (TeamKobe_MakerDay2.pdf).
+    Single scrollable page; not interactive. The reviewer reads it,
+    then clicks over to the Live Dashboard tab to run the demo.
+    """
+    NAVY_TOP = "#001a4d"
+    RED      = "#c81e1e"
+    AMBER    = "#b45309"
+
+    # ─────────────────────────────────────────────────────────────────
+    # Hero — title + subtitle + 4 KPI tiles
+    # ─────────────────────────────────────────────────────────────────
+    st.markdown(
+        f"""
+        <div style='background:{NAVY_TOP};color:#fff;padding:32px 36px;
+        border-radius:6px;margin-top:8px;margin-bottom:14px;
+        border-left:6px solid {RED};'>
+          <div style='font-size:13px;letter-spacing:1.6px;text-transform:uppercase;
+          color:#9bb5d4;font-weight:700;'>JPMorgan Chase &amp; Co. · Team Kobe</div>
+          <div style='font-size:38px;font-weight:900;line-height:1.1;
+          margin-top:10px;letter-spacing:-0.5px;'>A New Kind of Attacker Is Calling Your Bank.</div>
+          <div style='font-size:18px;color:#cbd5e1;margin-top:14px;
+          line-height:1.5;font-weight:400;max-width:920px;'>
+            AI-generated voice agents are impersonating real customers —
+            bypassing IVR, fooling biometrics, and manipulating live agents
+            in real time.
+          </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    kpis = [
+        ("$12.5B",  "in contact-center fraud losses · 2024 alone",      RED),
+        ("1,210%",  "increase in AI-enabled contact-center fraud",       NAVY),
+        ("1 in 127","retail calls fraudulent right now",                 ACCENT),
+        ("24.5%",   "human detection rate · agents miss 3 of every 4",  NAVY_TOP),
+    ]
+    cols = st.columns(4)
+    for col, (val, sub, color) in zip(cols, kpis):
+        with col:
+            st.markdown(
+                f"""
+                <div style='background:{color};color:#fff;border-radius:6px;
+                padding:22px 18px;height:100%;text-align:center;
+                box-shadow:0 1px 4px rgba(0,0,0,0.08);'>
+                  <div style='font-size:36px;font-weight:900;letter-spacing:-0.5px;
+                  font-family:Georgia,serif;'>{val}</div>
+                  <div style='font-size:12px;color:rgba(255,255,255,0.85);
+                  margin-top:8px;line-height:1.4;font-weight:500;'>{sub}</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+    # ─────────────────────────────────────────────────────────────────
+    # Section 1 — Problem Definition
+    # ─────────────────────────────────────────────────────────────────
+    st.markdown("<div style='height:18px;'></div>", unsafe_allow_html=True)
+    st.markdown(
+        f"<div style='font-size:11px;color:{MUTED};letter-spacing:1.6px;"
+        f"text-transform:uppercase;font-weight:700;'>01 · Problem Definition</div>"
+        f"<h2 style='font-size:32px;font-weight:900;color:{NAVY_TOP};"
+        f"font-family:Georgia,serif;margin:4px 0 16px 0;'>The Core Problem</h2>",
+        unsafe_allow_html=True,
+    )
+
+    left, right = st.columns([5, 4], gap="medium")
+    with left:
+        st.markdown(
+            f"""
+            <div style='background:{NAVY_TOP};color:#fff;padding:22px 24px;
+            border-radius:6px;'>
+              <div style='font-size:11px;letter-spacing:1.6px;
+              text-transform:uppercase;color:#9bb5d4;font-weight:700;'>The core problem</div>
+              <div style='font-size:22px;font-weight:700;line-height:1.35;
+              margin-top:10px;font-family:Georgia,serif;'>
+                AI voice agents are calling bank contact centers and
+                impersonating real customers to bypass authentication
+                and take over accounts.
+              </div>
+              <div style='border-top:1px solid rgba(255,255,255,0.2);
+              margin:18px 0;'></div>
+              <div style='font-size:15px;color:#cbd5e1;font-style:italic;
+              line-height:1.5;'>
+                Banks built contact centers to serve people. That
+                assumption is now the vulnerability.
+              </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+        st.markdown("<div style='height:14px;'></div>", unsafe_allow_html=True)
+        attacks = [
+            ("①", "IVR Bypass",
+             "Synthetic voices pass automated phone systems before any "
+             "human is involved.", NAVY),
+            ("②", "Live Agent Manipulation",
+             "AI bots reach agents and socially engineer account changes "
+             "— resets, transfers, unlocks.", NAVY),
+            ("③", "Biometric Defeat",
+             "Voice clones built from 3–5 sec of audio fool even "
+             "dedicated voice authentication systems.", RED),
+        ]
+        for num, title, desc, accent in attacks:
+            st.markdown(
+                f"""
+                <div style='background:#fff;border:1px solid {BORDER};
+                border-left:4px solid {accent};border-radius:4px;
+                padding:13px 16px;margin-bottom:8px;
+                display:grid;grid-template-columns:auto 1fr;gap:14px;
+                align-items:start;'>
+                  <div style='font-size:22px;font-weight:900;color:{accent};
+                  line-height:1;'>{num}</div>
+                  <div>
+                    <div style='font-size:15px;font-weight:800;color:{INK};'>{title}</div>
+                    <div style='font-size:14px;color:{INK};
+                    margin-top:4px;line-height:1.45;'>{desc}</div>
+                  </div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+    with right:
+        c1, c2 = st.columns(2)
+        with c1:
+            st.markdown(
+                f"<div style='background:{RED};color:#fff;border-radius:6px;"
+                f"padding:18px;text-align:center;'>"
+                f"<div style='font-size:34px;font-weight:900;font-family:Georgia,serif;'>24.5%</div>"
+                f"<div style='font-size:12px;color:rgba(255,255,255,0.9);"
+                f"margin-top:6px;'>Human detection rate for synthetic voices</div></div>",
+                unsafe_allow_html=True,
+            )
+        with c2:
+            st.markdown(
+                f"<div style='background:{ACCENT};color:#fff;border-radius:6px;"
+                f"padding:18px;text-align:center;'>"
+                f"<div style='font-size:34px;font-weight:900;font-family:Georgia,serif;'>3–5 sec</div>"
+                f"<div style='font-size:12px;color:rgba(255,255,255,0.9);"
+                f"margin-top:6px;'>Audio needed to clone a customer's voice</div></div>",
+                unsafe_allow_html=True,
+            )
+
+        st.markdown(
+            f"""
+            <div style='background:#eff6ff;border-left:4px solid {ACCENT};
+            border-radius:4px;padding:14px 16px;margin-top:10px;'>
+              <div style='font-size:14px;font-weight:800;color:{NAVY};'>Why This Cannot Wait</div>
+              <div style='font-size:13.5px;color:{INK};margin-top:6px;
+              line-height:1.5;'>
+                Agents are the last line of defense — but they only catch
+                synthetic voices 24.5% of the time. Fraudsters succeed on 3
+                of every 4 calls. The bank's own infrastructure — IVR,
+                biometrics, live agents — is being weaponized against it.
+              </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+        st.markdown(
+            f"""
+            <div style='background:#fff;border:1px solid {BORDER};
+            border-left:4px solid {ACCENT};border-radius:4px;padding:14px 16px;
+            margin-top:10px;'>
+              <div style='font-size:11px;letter-spacing:1.4px;
+              text-transform:uppercase;color:{ACCENT};font-weight:800;'>Primary user</div>
+              <div style='font-size:17px;font-weight:800;color:{INK};
+              margin-top:4px;'>Contact Center Operations &amp; Fraud Teams</div>
+              <div style='font-size:13.5px;color:{INK};margin-top:6px;
+              line-height:1.5;'>
+                300-person teams handling 100M+ calls annually — responsible
+                for identity validation and account recovery, with no
+                real-time tool to detect AI-generated callers.
+              </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    # ─────────────────────────────────────────────────────────────────
+    # Section 2 — Research Insights
+    # ─────────────────────────────────────────────────────────────────
+    st.markdown("<div style='height:24px;'></div>", unsafe_allow_html=True)
+    st.markdown(
+        f"<div style='font-size:11px;color:{MUTED};letter-spacing:1.6px;"
+        f"text-transform:uppercase;font-weight:700;'>02 · Research Insights</div>"
+        f"<h2 style='font-size:32px;font-weight:900;color:{NAVY_TOP};"
+        f"font-family:Georgia,serif;margin:4px 0 16px 0;'>What the Field Tells Us</h2>",
+        unsafe_allow_html=True,
+    )
+
+    left, right = st.columns([5, 4], gap="medium")
+    with left:
+        st.markdown(
+            f"<div style='font-size:15px;font-weight:800;color:{NAVY};"
+            f"margin-bottom:8px;'>User Interviews &amp; Market Research</div>",
+            unsafe_allow_html=True,
+        )
+        bullets = [
+            ("JPMorgan Chase (Primary):",
+             "300-person security org, 100M+ calls/yr. Top stated priority: "
+             "detecting non-human interactions in IVR and live call flows."),
+            ("Key concern:",
+             "Customer AI assistants will soon interact with bank systems — "
+             "the attack surface is expanding."),
+            ("Vendor landscape:",
+             "Described as \"pages and pages\" of options with no evaluation "
+             "framework — a clear gap we can address."),
+            ("MSUFCU Case Study:",
+             "$2.57M exposure from deepfake calls over 14 months. Discovered "
+             "only after deploying AI voice screening — the attack was already inside."),
+        ]
+        for label, body in bullets:
+            st.markdown(
+                f"""
+                <div style='background:#fff;border:1px solid {BORDER};
+                border-left:4px solid {ACCENT};border-radius:4px;
+                padding:11px 14px;margin-bottom:7px;'>
+                  <span style='font-size:14px;font-weight:800;color:{NAVY};'>{label}</span>
+                  <span style='font-size:14px;color:{INK};line-height:1.5;'> {body}</span>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+    with right:
+        st.markdown(
+            f"""
+            <div style='background:#eff6ff;border-radius:4px;padding:14px 16px;
+            margin-bottom:12px;'>
+              <div style='font-size:14px;font-weight:800;color:{NAVY};'>Key Stakeholders</div>
+              <div style='font-size:13.5px;color:{INK};margin-top:6px;line-height:1.55;'>
+                <b>Primary:</b> Contact Center Ops &amp; Fraud Teams —
+                frontline defenders for identity validation.<br>
+                <b>Secondary:</b> Fraud Investigators, Compliance, Risk,
+                IT/Engineering.
+              </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+        st.markdown(
+            f"<div style='font-size:15px;font-weight:800;color:{NAVY};"
+            f"margin-bottom:8px;'>Existing Solutions — Where They Fall Short</div>",
+            unsafe_allow_html=True,
+        )
+        gaps = [
+            ("Voice Biometrics",
+             "Defeated by high-quality voice clones. No real-time liveness detection."),
+            ("Manual Agent Training",
+             "Only 24.5% detection rate. Inconsistent and not scalable."),
+            ("Post-Call Forensics",
+             "Too slow. Damage is done before detection triggers."),
+        ]
+        for what, why in gaps:
+            st.markdown(
+                f"""
+                <div style='background:#fef2f2;border-left:4px solid {RED};
+                border-radius:4px;padding:11px 14px;margin-bottom:7px;
+                display:grid;grid-template-columns:170px 1fr;gap:14px;
+                align-items:start;'>
+                  <div style='font-size:13.5px;font-weight:800;color:{RED};'>{what}</div>
+                  <div style='font-size:13.5px;color:{INK};line-height:1.5;'>{why}</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+    # ─────────────────────────────────────────────────────────────────
+    # Section 3 — Solution Outline (3 pillars)
+    # ─────────────────────────────────────────────────────────────────
+    st.markdown("<div style='height:24px;'></div>", unsafe_allow_html=True)
+    st.markdown(
+        f"<div style='font-size:11px;color:{MUTED};letter-spacing:1.6px;"
+        f"text-transform:uppercase;font-weight:700;'>03 · Solution</div>"
+        f"<h2 style='font-size:32px;font-weight:900;color:{NAVY_TOP};"
+        f"font-family:Georgia,serif;margin:4px 0 12px 0;'>VoiceGuard AI · Solution Outline</h2>"
+        f"<div style='background:#eff6ff;border-radius:4px;padding:11px 16px;"
+        f"margin-bottom:14px;font-size:14px;color:{INK};'>"
+        f"<b style='color:{NAVY};'>Value addition:</b> Build a purpose-built "
+        f"real-time AI voice detection layer for contact-center account "
+        f"recovery flows — the gap no current vendor fills.</div>",
+        unsafe_allow_html=True,
+    )
+
+    pillars = [
+        ("01", "Real-Time Voice Authenticity Scoring",
+         "Every call analyzed the instant audio arrives. A confidence score "
+         "— human or AI — is returned in real time. Before the agent says a single word.",
+         ["Sub-second detection latency",
+          "Voice liveness detection",
+          "Real-time confidence scoring",
+          "Defeats cloned & synthetic voices"]),
+        ("02", "Agent Alert &amp; Step-Up Authentication",
+         "When a call is flagged, the agent is alerted instantly and a "
+         "one-time passcode is sent to the customer's real device. The "
+         "attacker cannot complete it.",
+         ["Instant agent dashboard alert",
+          "OTP step-up authentication",
+          "Blocks action before transfer",
+          "Supplements existing biometrics"]),
+        ("03", "Fraud Loss &amp; Reputation Impact Dashboard",
+         "Separates P&amp;L loss from headline customer exposure — giving ops "
+         "and leadership the numbers that drive decisions and protect the brand.",
+         ["Customer-perceived vs. P&amp;L loss split",
+          "Attack-vector loss attribution",
+          "Real-time fraud avoidance metric",
+          "Board-ready reputational risk view"]),
+    ]
+    cols = st.columns(3, gap="medium")
+    for col, (num, title, body, checks) in zip(cols, pillars):
+        with col:
+            checks_html = "".join(
+                f"<div style='font-size:13.5px;color:{NAVY};margin-top:6px;"
+                f"font-weight:600;'>✓ {c}</div>"
+                for c in checks
+            )
+            st.markdown(
+                f"""
+                <div style='background:#fff;border:1px solid {BORDER};
+                border-radius:6px;padding:18px 20px;height:100%;
+                box-shadow:0 1px 4px rgba(0,0,0,0.06);'>
+                  <div style='display:inline-block;background:{NAVY_TOP};
+                  color:#fff;border-radius:50%;width:34px;height:34px;
+                  line-height:34px;text-align:center;font-size:14px;
+                  font-weight:900;'>{num}</div>
+                  <div style='font-size:18px;font-weight:800;color:{NAVY_TOP};
+                  margin-top:10px;line-height:1.3;font-family:Georgia,serif;'>{title}</div>
+                  <div style='font-size:13.5px;color:{INK};margin-top:8px;
+                  line-height:1.5;'>{body}</div>
+                  <div style='border-top:1px solid {BORDER};margin:12px 0 4px 0;'></div>
+                  {checks_html}
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+    # ─────────────────────────────────────────────────────────────────
+    # Section 4 — Why VoiceGuard Wins
+    # ─────────────────────────────────────────────────────────────────
+    st.markdown("<div style='height:24px;'></div>", unsafe_allow_html=True)
+    st.markdown(
+        f"<div style='font-size:11px;color:{MUTED};letter-spacing:1.6px;"
+        f"text-transform:uppercase;font-weight:700;'>04 · Differentiation</div>"
+        f"<h2 style='font-size:32px;font-weight:900;color:{NAVY_TOP};"
+        f"font-family:Georgia,serif;margin:4px 0 16px 0;'>Why VoiceGuard Wins</h2>",
+        unsafe_allow_html=True,
+    )
+
+    wins = [
+        ("Real-Time Fraud Interception",
+         "Before damage occurs",
+         ["Decisions made <b>in-call, not after</b>",
+          "Prevents account takeover <b>before execution</b>",
+          "Shifts fraud detection → <b>fraud prevention</b>",
+          "Targets the 75% of attacks agents currently miss"]),
+        ("Seamless Stack Integration",
+         "No vendor replacement required",
+         ["Works within existing IVR, biometrics, and workflows",
+          "Eliminates need for <b>rip-and-replace</b> solutions",
+          "Unifies fragmented tools into a <b>single decision layer</b>"]),
+        ("End-to-End Interaction Intelligence",
+         "Beyond voice-only systems",
+         ["Analyzes <b>the entire customer interaction</b>, not just audio",
+          "Detects patterns traditional systems miss",
+          "Continuously adapts during the call lifecycle"]),
+    ]
+    cols = st.columns(3, gap="medium")
+    for col, (title, sub, points) in zip(cols, wins):
+        with col:
+            pts = "".join(
+                f"<li style='font-size:13.5px;color:{INK};line-height:1.55;"
+                f"margin-bottom:5px;'>{p}</li>"
+                for p in points
+            )
+            st.markdown(
+                f"""
+                <div style='background:#fff;border:1px solid {BORDER};
+                border-top:4px solid {ACCENT};border-radius:6px;
+                padding:18px 20px;height:100%;
+                box-shadow:0 1px 4px rgba(0,0,0,0.06);'>
+                  <div style='font-size:18px;font-weight:800;color:{NAVY_TOP};
+                  font-family:Georgia,serif;line-height:1.25;'>{title}</div>
+                  <div style='font-size:13px;color:{MUTED};font-style:italic;
+                  margin-top:3px;'>({sub})</div>
+                  <ul style='margin-top:11px;padding-left:18px;'>{pts}</ul>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+    st.markdown(
+        f"<div style='text-align:center;font-size:15px;color:{NAVY};"
+        f"font-style:italic;margin-top:14px;'>"
+        f"VoiceGuard transforms fraud detection from reactive analysis into "
+        f"<b>real-time decisioning</b>.</div>",
+        unsafe_allow_html=True,
+    )
+
+    # ─────────────────────────────────────────────────────────────────
+    # Section 5 — Current-State Journey Map
+    # ─────────────────────────────────────────────────────────────────
+    st.markdown("<div style='height:24px;'></div>", unsafe_allow_html=True)
+    st.markdown(
+        f"<div style='font-size:11px;color:{MUTED};letter-spacing:1.6px;"
+        f"text-transform:uppercase;font-weight:700;'>05 · Current-State Journey Map</div>"
+        f"<h2 style='font-size:32px;font-weight:900;color:{NAVY_TOP};"
+        f"font-family:Georgia,serif;margin:4px 0 4px 0;'>How the Attack Unfolds Today</h2>"
+        f"<div style='font-size:14px;color:{MUTED};font-style:italic;"
+        f"margin-bottom:14px;'>And where the system fails — at every stage.</div>",
+        unsafe_allow_html=True,
+    )
+
+    stages = [
+        ("1", "Voice Cloning",     "Attacker acquires<br>3–5 sec of audio",       "No detection<br>in place",                          "Not yet<br>involved",                            "blue"),
+        ("2", "IVR Bypass",        "Synthetic voice<br>calls the bank",           "<b style='color:#c81e1e;'>IVR accepts clone<br>as authentic ✗</b>", "Not yet<br>involved",                  "blue"),
+        ("3", "Biometric Defeat",  "Cloned voice passes<br>biometric verification","<b style='color:#c81e1e;'>Voice biometrics<br>accepts clone ✗</b>","Not yet<br>involved",               "blue"),
+        ("4", "Data Harvest",      "AI bot extracts<br>account info via menu",    "Provides account<br>data to caller",                "Not yet<br>involved",                            "blue"),
+        ("5", "Agent Manipulation","Bot reaches live agent,<br>impersonates customer","Routes call<br>normally",                       "<b style='color:#c81e1e;'>Cannot detect AI voice ✗<br>24.5% catch rate</b>", "red"),
+        ("6", "Account Takeover",  "Attacker gains full<br>account control",       "<b style='color:#c81e1e;'>Processes reset, unlock,<br>or transfer ✗</b>", "<b style='color:#c81e1e;'>Fraud found only<br>after the fact ✗</b>", "red"),
+    ]
+    # Render journey map as a 4-column grid (header column + 6 stage columns)
+    # First row: stage headers
+    cols = st.columns([1.2] + [1] * 6, gap="small")
+    cols[0].markdown(
+        f"<div style='background:{NAVY_TOP};color:#fff;padding:10px;"
+        f"border-radius:4px;height:100%;'></div>",
+        unsafe_allow_html=True,
+    )
+    for col, (num, name, _, _, _, color) in zip(cols[1:], stages):
+        bg = NAVY if color == "blue" else RED
+        col.markdown(
+            f"<div style='background:{bg};color:#fff;padding:10px 12px;"
+            f"border-radius:4px;height:100%;text-align:center;'>"
+            f"<div style='display:inline-block;background:#fff;color:{bg};"
+            f"width:24px;height:24px;line-height:24px;border-radius:50%;"
+            f"font-size:13px;font-weight:900;'>{num}</div>"
+            f"<div style='font-size:13px;font-weight:800;margin-top:5px;'>{name}</div></div>",
+            unsafe_allow_html=True,
+        )
+    # Three swim lanes: Attacker / Bank System / Live Agent
+    lane_styles = [
+        ("ATTACKER",   NAVY_TOP,  "#fff",     "#f5f6f8"),
+        ("BANK SYSTEM",ACCENT,    "#fff",     "#eff6ff"),
+        ("LIVE AGENT", "#5b6ec1", "#fff",     "#f0f2fa"),
+    ]
+    for lane_idx, (lane_name, lane_bg, lane_fg, cell_bg) in enumerate(lane_styles):
+        cols = st.columns([1.2] + [1] * 6, gap="small")
+        cols[0].markdown(
+            f"<div style='background:{lane_bg};color:{lane_fg};padding:18px 12px;"
+            f"border-radius:4px;height:100%;text-align:center;"
+            f"font-size:12px;font-weight:900;letter-spacing:1.4px;'>"
+            f"{lane_name}</div>",
+            unsafe_allow_html=True,
+        )
+        for col, stage in zip(cols[1:], stages):
+            num, name, attacker_text, system_text, agent_text, _ = stage
+            text = [attacker_text, system_text, agent_text][lane_idx]
+            col.markdown(
+                f"<div style='background:{cell_bg};border:1px solid {BORDER};"
+                f"padding:12px;border-radius:4px;height:100%;font-size:12.5px;"
+                f"color:{INK};line-height:1.5;'>{text}</div>",
+                unsafe_allow_html=True,
+            )
+
+    st.markdown(
+        f"<div style='background:{RED};color:#fff;padding:13px 18px;"
+        f"border-radius:4px;margin-top:10px;font-size:14px;font-weight:700;'>"
+        f"⚠ <b>CRITICAL GAP:</b> No real-time detection exists at any stage — "
+        f"synthetic voices pass through IVR, biometrics, and live agents "
+        f"completely undetected until after the damage is done.</div>",
+        unsafe_allow_html=True,
+    )
+
+    # ─────────────────────────────────────────────────────────────────
+    # Transition CTA
+    # ─────────────────────────────────────────────────────────────────
+    st.markdown("<div style='height:24px;'></div>", unsafe_allow_html=True)
+    st.markdown(
+        f"""
+        <div style='background:linear-gradient(135deg,{NAVY},{ACCENT});
+        color:#fff;border-radius:6px;padding:24px 28px;text-align:center;
+        box-shadow:0 2px 8px rgba(0,48,135,0.25);'>
+          <div style='font-size:13px;letter-spacing:1.6px;text-transform:uppercase;
+          color:#cbd5e1;font-weight:700;'>Now let's see it in action</div>
+          <div style='font-size:24px;font-weight:800;margin-top:6px;
+          font-family:Georgia,serif;'>Click the <span style='background:rgba(255,255,255,0.18);
+          padding:3px 10px;border-radius:4px;'>Live Dashboard</span> tab above
+          →</div>
+          <div style='font-size:14px;color:#cbd5e1;margin-top:8px;'>
+            We'll run real audio through the live ML pipeline and watch the
+            human-in-the-loop decision surface in real time.
+          </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
 def main() -> None:
     st.set_page_config(
         page_title="VoiceGuard AI · Fraud Operations Dashboard",
@@ -1655,10 +2163,13 @@ def main() -> None:
     inject_css()
     render_header()
 
-    tab_dashboard, tab_audit = st.tabs([
+    tab_business, tab_dashboard, tab_audit = st.tabs([
+        "  Business Case  ",
         "  Live Dashboard  ",
         "  Stage-by-Stage Audit  ",
     ])
+    with tab_business:
+        render_business_case()
     with tab_dashboard:
         sim_slots = render_live_simulation()
     with tab_audit:
