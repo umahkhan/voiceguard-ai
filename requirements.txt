@@ -1,11 +1,17 @@
+# CPU-only PyTorch wheels — keeps the install ~150MB instead of ~700MB.
+# Required for Streamlit Cloud's 1GB free-tier disk/RAM budget; without
+# this, pip pulls the CUDA wheel and the build OOMs silently, leaving
+# the previous successful deploy stuck in production.
+--extra-index-url https://download.pytorch.org/whl/cpu
+
 langgraph>=0.1
 anthropic>=0.20
 streamlit>=1.30
 python-dotenv>=1.0
 transformers>=4.40
 torch>=2.2
+torchaudio>=2.2
 librosa>=0.10
 soundfile>=0.12
 numpy>=1.24
 speechbrain>=1.0
-torchaudio>=2.2
