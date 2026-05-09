@@ -102,7 +102,7 @@ SCENARIOS: dict[str, dict] = {
         ),
         "expected": "PASS",
     },
-    "Umair (real call — new recording)": {
+    "Real Call Example 2": {
         "spectral": 0.05, "prosody": 0.05, "behavior": 0.10, "conf": 0.10,
         "audio": "real_umair.m4a",
         "caller_id":      "+1 212-555-0199",
