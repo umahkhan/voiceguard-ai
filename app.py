@@ -199,6 +199,52 @@ def _action_for(verdict: str) -> str:
     }[verdict]
 
 
+@st.cache_resource(show_spinner=False)
+def _get_graph():
+    """LangGraph pipeline (built once, shared via Streamlit's resource cache).
+    The graph compiles with a MemorySaver checkpointer so each call's
+    thread_id keeps its own pause/resume state."""
+    from graph import build_graph
+    return build_graph()
+
+
+def _invoke_pipeline(initial_state: dict, thread_id: str) -> dict:
+    """Run the graph from START until it pauses at human_review.
+    Returns the paused-state values dict."""
+    g = _get_graph()
+    config = {"configurable": {"thread_id": thread_id}}
+    g.invoke(initial_state, config=config)
+    snap = g.get_state(config)
+    return dict(snap.values)
+
+
+def _resume_pipeline(decision: str, thread_id: str) -> dict:
+    """Resume the paused graph with the reviewer's decision and run to END."""
+    g = _get_graph()
+    config = {"configurable": {"thread_id": thread_id}}
+    g.update_state(config, {"human_decision": decision})
+    g.invoke(None, config=config)
+    snap = g.get_state(config)
+    return dict(snap.values)
+
+
+def _pipeline_position(graph_state: dict | None) -> str:
+    """Plain-language pipeline status for the dashboard banner."""
+    if not graph_state:
+        return "idle"
+    if graph_state.get("transaction_blocked"):
+        return "complete (blocked)"
+    if graph_state.get("otp_completed") is not None:
+        return "complete (auth challenge fired)"
+    if graph_state.get("human_review_completed"):
+        return "complete"
+    if graph_state.get("agent_alert_fired"):
+        return "paused — awaiting reviewer"
+    if graph_state.get("ivr_entry_confidence") is not None:
+        return "in progress"
+    return "started"
+
+
 @st.cache_data(show_spinner=False)
 def _live_scores_for(audio_path: str) -> dict:
     """Run the real deepfake detector on an audio path. Cached across reruns."""
@@ -1144,6 +1190,16 @@ def _render_complete_right(slot, state: dict) -> None:
             )
         if approve or stepup or block:
             decision = "approve" if approve else ("stepup" if stepup else "block")
+            # Resume the LangGraph pipeline with this decision. The graph
+            # routes to auth_challenge (stepup) or straight to intelligence
+            # (approve / block) and runs to END.
+            tid = st.session_state.get("graph_thread_id")
+            try:
+                if tid:
+                    final_state = _resume_pipeline(decision, tid)
+                    st.session_state["graph_state"] = final_state
+            except Exception as exc:  # noqa: BLE001
+                st.session_state["graph_error"] = str(exc)
             st.session_state.setdefault("reviewer_log", []).append({
                 "ts":       time.strftime("%H:%M:%S"),
                 "scenario": state["name"],
@@ -1153,11 +1209,42 @@ def _render_complete_right(slot, state: dict) -> None:
             st.session_state["call_seq"] = st.session_state.get("call_seq", 0) + 1
             st.rerun()
 
+        # Pipeline status banner — shows where the call sits in the graph
+        gs = st.session_state.get("graph_state")
+        pos = _pipeline_position(gs)
+        if gs:
+            st.markdown(_pipeline_status_html(pos, gs), unsafe_allow_html=True)
+
         ctx_col, log_col = st.columns([6, 4])
         with ctx_col:
             st.markdown(caller_context_html(state), unsafe_allow_html=True)
         with log_col:
             st.markdown(audit_log_html(), unsafe_allow_html=True)
+
+
+def _pipeline_status_html(position: str, graph_state: dict) -> str:
+    decision = graph_state.get("human_decision", "pending")
+    pieces = ["Voice Cloning ✓", "IVR Entry ✓", "Agent Handoff ✓"]
+    if graph_state.get("human_review_completed"):
+        pieces.append(f"Human Review ✓ ({decision})")
+    else:
+        pieces.append("⏸ Human Review (paused)")
+    if graph_state.get("otp_sent") is not None:
+        pieces.append("Auth Challenge ✓")
+    if "leadership_summary" in (graph_state.get("intelligence_log") or {}):
+        pieces.append("Intelligence ✓")
+    chips = "".join(
+        f'<span style="background:#003087;color:#fff;padding:4px 10px;border-radius:3px;'
+        f'font-size:13px;font-weight:700;letter-spacing:0.4px;margin-right:6px;'
+        f'display:inline-block;margin-bottom:4px;">{p}</span>'
+        for p in pieces
+    )
+    return (
+        f'<div class="vg-card" style="margin-top:10px;padding:14px 18px;">'
+        f'<div class="vg-meta-l" style="margin-bottom:8px;">LangGraph Pipeline · {position}</div>'
+        f'{chips}'
+        f'</div>'
+    )
 
 
 def render_live_simulation() -> dict:
@@ -1375,14 +1462,44 @@ def render_stage_audit() -> dict:
 
 
 def run_call_animation(sim: dict, audit: dict) -> None:
-    """Run the real-time-feel analysis animation. Audio autoplays in
-    parallel; signals populate progressively in the dashboard tab while
-    the audit tab fills in stage detail in lockstep."""
+    """Run the real-time-feel analysis animation. Invokes the LangGraph
+    pipeline at the start (it pauses at human_review for the reviewer),
+    plays audio, and animates signal reveal in parallel."""
     state = sim["state"]
     audio_path = Path(state["audio_path"]) if state.get("audio_path") else None
     if audio_path and audio_path.exists():
         fmt = "audio/mp3" if audio_path.suffix.lower() == ".mp3" else "audio/wav"
         sim["audio_slot"].audio(str(audio_path), format=fmt, autoplay=True)
+
+    # Drive the LangGraph pipeline through to its human-review pause.
+    # Thread ID is timestamp-unique so consecutive Connect clicks don't
+    # collide on a stale checkpoint. The dashboard's already-computed
+    # scores are seeded into initial state so node1's cached inference
+    # is the only model work; downstream nodes (IVR Entry, Navigation,
+    # Agent Handoff) populate the journey trace + alert message.
+    thread_id = f"call-{int(time.time() * 1000)}"
+    initial_graph_state = {
+        "caller_id":             state["caller_id"],
+        "audio_path":            str(audio_path) if audio_path else "",
+        "live_mode":             True,
+        "registered_voice_path": st.session_state.get("registered_voice_path", ""),
+        "spectral_score":        float(state["spectral"]),
+        "prosody_score":         float(state["prosody"]),
+        "speaker_similarity":    (
+            float(state["speaker_similarity"])
+            if state.get("speaker_similarity") is not None else 0.0
+        ),
+        "verdict":               state["verdict"],
+        "human_decision":        "pending",
+        "journey_trace":         [],
+    }
+    try:
+        paused_state = _invoke_pipeline(initial_graph_state, thread_id)
+        st.session_state["graph_state"] = paused_state
+        st.session_state["graph_thread_id"] = thread_id
+    except Exception as exc:  # noqa: BLE001
+        st.session_state["graph_state"] = None
+        st.session_state["graph_error"] = str(exc)
 
     st.session_state["session_calls"].append({
         "name":      state["name"],
@@ -1570,6 +1687,9 @@ def init_session() -> None:
     ss.setdefault("live_mic_audio_path",   "")
     ss.setdefault("reviewer_log",  [])
     ss.setdefault("call_seq",      0)
+    ss.setdefault("graph_state",   None)
+    ss.setdefault("graph_thread_id", "")
+    ss.setdefault("graph_error",   "")
 
 
 def main() -> None:

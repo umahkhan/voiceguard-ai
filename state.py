@@ -40,6 +40,10 @@ class VoiceGuardState(TypedDict, total=False):
     step_up_auth_triggered: bool
     alert_message: str
 
+    # Human review — pipeline pauses here for the live agent's decision
+    human_decision: Literal["approve", "stepup", "block", "pending"]
+    human_review_completed: bool
+
     # Stage 5 — Auth Challenge Agent (Defense 4)
     otp_sent: bool
     otp_completed: bool
