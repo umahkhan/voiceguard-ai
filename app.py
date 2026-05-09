@@ -13,6 +13,7 @@ import time
 from pathlib import Path
 
 import streamlit as st
+import streamlit.components.v1 as _components
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -38,6 +39,22 @@ SPOOFED_VOICE_FILE    = AUDIO_DIR / "customer_voiceprint_umair_spoofed.mp3"
 VOICEPRINTS: dict[str, str] = {
     "Umair Khan": "customer_voiceprint_umair.m4a",
 }
+
+
+def _audio_mime(path: Path) -> str:
+    """Map audio file extension → MIME type. Streamlit Cloud occasionally
+    serves files with the wrong Content-Type when given a path string,
+    causing the browser to not render the audio control. Passing bytes
+    plus an explicit format avoids the issue."""
+    return {
+        ".m4a":  "audio/mp4",
+        ".mp4":  "audio/mp4",
+        ".aac":  "audio/aac",
+        ".mp3":  "audio/mpeg",
+        ".wav":  "audio/wav",
+        ".flac": "audio/flac",
+        ".ogg":  "audio/ogg",
+    }.get(path.suffix.lower(), "audio/mpeg")
 
 
 # ---------------------------------------------------------------------------
@@ -1271,7 +1288,6 @@ def _pipeline_status_html(position: str, graph_state: dict) -> str:
     )
     return (
         f'<div class="vg-card" style="margin-top:10px;padding:14px 18px;">'
-        f'<div class="vg-meta-l" style="margin-bottom:8px;">LangGraph Pipeline · {position}</div>'
         f'{chips}'
         f'</div>'
     )
@@ -1299,7 +1315,11 @@ def render_live_simulation() -> dict:
                 st.session_state["registered_voice_path"] = str(vp_path)
                 st.session_state["registered_voice_name"] = vp_path.name
                 _reset_call()
-            st.audio(str(vp_path))
+            # Pass bytes + explicit MIME so Streamlit Cloud serves the file
+            # with the right Content-Type. Path-only call fails silently for
+            # .m4a on some runners (the browser receives octet-stream and
+            # never renders the audio control).
+            st.audio(vp_path.read_bytes(), format=_audio_mime(vp_path))
             has_reg = True
         else:
             st.error(f"⚠ Missing audio file: `audio/{vp_path.name}`")
@@ -1315,15 +1335,6 @@ def render_live_simulation() -> dict:
             label_visibility="collapsed",
             disabled=not has_reg,
         )
-        # Audio player for the selected caller-audio file
-        if has_reg:
-            sel = st.session_state.get("preset_choice")
-            sc = SCENARIOS.get(sel, {})
-            cau_path = _scenario_audio_path(sel, sc)
-            if cau_path and Path(cau_path).exists():
-                st.audio(cau_path)
-            elif sel and sc.get("audio"):
-                st.error(f"⚠ Missing audio file: `audio/{sc['audio']}`")
 
         if st.session_state.get("live_mode_error"):
             st.caption(f"⚠ {st.session_state['live_mode_error']}")
@@ -2217,6 +2228,18 @@ def main() -> None:
         audit_slots = render_stage_audit()
 
     if sim_slots["place_call"]:
+        # Auto-switch to "Live Dashboard" tab (index 1) on button press.
+        # Streamlit reruns from the top on every interaction, which resets the
+        # active tab to the first one (Business Case). This JS click fixes it.
+        _components.html(
+            """<script>
+            setTimeout(function() {
+                var tabs = window.parent.document.querySelectorAll('[data-baseweb="tab"]');
+                if (tabs.length > 1) tabs[1].click();
+            }, 50);
+            </script>""",
+            height=0,
+        )
         run_call_animation(sim_slots, audit_slots)
 
 
