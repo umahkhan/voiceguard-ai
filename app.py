@@ -31,13 +31,13 @@ AUDIO_DIR = Path(__file__).parent / "audio"
 
 # Customer voiceprint is pinned to a file in the project — no upload UI.
 # Drop the enrollment recording at this path.
-REGISTERED_VOICE_FILE = AUDIO_DIR / "customer_voiceprint_umair.m4a"
+REGISTERED_VOICE_FILE = AUDIO_DIR / "customer_voiceprint_umair.wav"
 SPOOFED_VOICE_FILE    = AUDIO_DIR / "customer_voiceprint_umair_spoofed.mp3"
 
 # Available customer voiceprints — the baseline pool the dashboard's
 # voiceprint dropdown picks from. Add new entries here to expand it.
 VOICEPRINTS: dict[str, str] = {
-    "Umair Khan": "customer_voiceprint_umair.m4a",
+    "Umair Khan": "customer_voiceprint_umair.wav",
 }
 
 
@@ -100,8 +100,8 @@ HIGH_FG, HIGH_BG = "#c81e1e", "#fee2e2"
 SCENARIOS: dict[str, dict] = {
     "Real Call · Example 1": {
         "spectral": 0.05, "prosody": 0.05, "behavior": 0.10, "conf": 0.10,
-        "audio": "customer_voiceprint_umair_real_call.m4a",
-        "fallback_audio": "customer_voiceprint_umair.m4a",
+        "audio": "customer_voiceprint_umair_real_call.wav",
+        "fallback_audio": "customer_voiceprint_umair.wav",
         "caller_id":      "+1 212-555-0199",
         "claimed_name":   "Umair (registered customer)",
         "account_suffix": "0042",
@@ -121,7 +121,7 @@ SCENARIOS: dict[str, dict] = {
     },
     "Real Call · Example 2": {
         "spectral": 0.05, "prosody": 0.05, "behavior": 0.10, "conf": 0.10,
-        "audio": "real_umair.m4a",
+        "audio": "real_umair.wav",
         "caller_id":      "+1 212-555-0199",
         "claimed_name":   "Umair (registered customer)",
         "account_suffix": "0042",
@@ -301,24 +301,8 @@ def _pipeline_position(graph_state: dict | None) -> str:
 
 @st.cache_data(show_spinner=False)
 def _audio_bytes_for_player(path_str: str) -> tuple[bytes, str]:
-    """Return (bytes, mime_type) suitable for st.audio.
-
-    Streamlit Cloud's libsndfile lacks the AAC codec, so st.audio silently
-    drops the player when given raw M4A bytes with format='audio/mp4'.
-    For M4A/AAC files we transcode to WAV in-memory via librosa's audioread
-    fallback (which uses system ffmpeg) so the browser always gets WAV,
-    which every Streamlit version renders reliably.
-    """
-    import io
+    """Return (bytes, mime_type) suitable for st.audio."""
     path = Path(path_str)
-    if path.suffix.lower() in {".m4a", ".aac"}:
-        import librosa
-        import soundfile as sf
-        y, sr = librosa.load(path_str, sr=None, mono=True)
-        buf = io.BytesIO()
-        sf.write(buf, y, sr, format="WAV")
-        buf.seek(0)
-        return buf.read(), "audio/wav"
     return path.read_bytes(), _audio_mime(path)
 
 
