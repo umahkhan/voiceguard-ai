@@ -102,6 +102,27 @@ SCENARIOS: dict[str, dict] = {
         ),
         "expected": "PASS",
     },
+    "Umair (real call — new recording)": {
+        "spectral": 0.05, "prosody": 0.05, "behavior": 0.10, "conf": 0.10,
+        "audio": "real_umair.m4a",
+        "caller_id":      "+1 212-555-0199",
+        "claimed_name":   "Umair (registered customer)",
+        "account_suffix": "0042",
+        "txn_type":       "Routine inbound call",
+        "txn_amount":     0,
+        "txn_destination":"—",
+        "prior_calls_30d": 6,
+        "ivr_path":       "Self-service first, then agent (typical pattern)",
+        "loss_avoidance": 0,
+        "narrative": (
+            "Second real-Umair recording. Same speaker as the enrolled "
+            "voiceprint but different content — exercises the speaker "
+            "model's ability to match across utterances, which is the "
+            "actual production case (you don't always have the same "
+            "phrase to compare)."
+        ),
+        "expected": "PASS",
+    },
     "Umair Spoofed": {
         "spectral": 0.55, "prosody": 0.45, "behavior": 0.50, "conf": 0.60,
         "audio": "customer_voiceprint_umair_spoofed.mp3",
