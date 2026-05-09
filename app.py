@@ -30,8 +30,8 @@ AUDIO_DIR = Path(__file__).parent / "audio"
 
 # Customer voiceprint is pinned to a file in the project — no upload UI.
 # Drop the enrollment recording at this path.
-REGISTERED_VOICE_FILE = AUDIO_DIR / "customer_voiceprint.m4a"
-SPOOFED_VOICE_FILE    = AUDIO_DIR / "customer_voiceprint_spoofed.m4a"
+REGISTERED_VOICE_FILE = AUDIO_DIR / "customer_voiceprint_umair.m4a"
+SPOOFED_VOICE_FILE    = AUDIO_DIR / "customer_voiceprint_umair_spoofed.mp3"
 
 
 # ---------------------------------------------------------------------------
@@ -75,11 +75,11 @@ HIGH_FG, HIGH_BG = "#c81e1e", "#fee2e2"
 #     `fallback_audio` if the preferred file isn't recorded yet
 # ---------------------------------------------------------------------------
 SCENARIOS: dict[str, dict] = {
-    "Authenticated Customer (same voice)": {
+    "Umair": {
         "spectral": 0.05, "prosody": 0.05, "behavior": 0.10, "conf": 0.10,
-        "audio": "customer_voiceprint.m4a",  # same file as the voiceprint
+        "audio": "customer_voiceprint_umair.m4a",  # same file as the voiceprint
         "caller_id":      "+1 212-555-0199",
-        "claimed_name":   "Registered Customer",
+        "claimed_name":   "Umair (registered customer)",
         "account_suffix": "0042",
         "txn_type":       "Balance inquiry · routine transfer",
         "txn_amount":     1850,
@@ -93,12 +93,11 @@ SCENARIOS: dict[str, dict] = {
         ),
         "expected": "PASS",
     },
-    "Spoofed Customer Voice (AI clone)": {
+    "Umair Spoofed": {
         "spectral": 0.55, "prosody": 0.45, "behavior": 0.50, "conf": 0.60,
-        "audio": "customer_voiceprint_spoofed.m4a",
-        "fallback_audio": "clean.mp3",
+        "audio": "customer_voiceprint_umair_spoofed.mp3",
         "caller_id":      "+1 415-555-0144",
-        "claimed_name":   "Registered Customer (claimed)",
+        "claimed_name":   "Umair (claimed)",
         "account_suffix": "0042",
         "txn_type":       "Wire transfer",
         "txn_amount":     27500,
@@ -107,10 +106,10 @@ SCENARIOS: dict[str, dict] = {
         "ivr_path":       "Direct-to-agent (skipped self-service)",
         "loss_avoidance": 27500,
         "narrative": (
-            "AI clone of the enrolled customer's voice. Tests the "
-            "hardest case — a deepfake that may pass speaker match. "
-            "Voice-risk artifacts are the backstop; if both clear, "
-            "step-up auth is the failsafe."
+            "AI clone of Umair's enrolled voice. Tests the hardest "
+            "case — a deepfake that may pass speaker match. Voice-risk "
+            "artifacts are the backstop; if both clear, step-up auth "
+            "is the failsafe."
         ),
         "expected": "FLAG",
     },
@@ -231,17 +230,20 @@ def _resume_pipeline(decision: str, thread_id: str) -> dict:
 
 
 def _pipeline_position(graph_state: dict | None) -> str:
-    """Plain-language pipeline status for the dashboard banner."""
+    """Plain-language pipeline status for the dashboard banner.
+    Pipeline pauses *after* agent_handoff; resume is driven by the
+    reviewer's button click. Status keys off observable state fields."""
     if not graph_state:
         return "idle"
-    if graph_state.get("transaction_blocked"):
-        return "complete (blocked)"
-    if graph_state.get("otp_completed") is not None:
-        return "complete (auth challenge fired)"
-    if graph_state.get("human_review_completed"):
+    intel = graph_state.get("intelligence_log") or {}
+    if intel.get("leadership_summary"):
+        if graph_state.get("transaction_blocked"):
+            return "complete (blocked)"
+        if graph_state.get("otp_sent"):
+            return "complete (auth challenge fired)"
         return "complete"
     if graph_state.get("agent_alert_fired"):
-        return "paused — awaiting reviewer"
+        return "paused — awaiting reviewer decision"
     if graph_state.get("ivr_entry_confidence") is not None:
         return "in progress"
     return "started"
@@ -1214,14 +1216,17 @@ def _render_complete_right(slot, state: dict) -> None:
 
 def _pipeline_status_html(position: str, graph_state: dict) -> str:
     decision = graph_state.get("human_decision", "pending")
-    pieces = ["Voice Cloning ✓", "IVR Entry ✓", "Agent Handoff ✓"]
-    if graph_state.get("human_review_completed"):
-        pieces.append(f"Human Review ✓ ({decision})")
-    else:
-        pieces.append("⏸ Human Review (paused)")
-    if graph_state.get("otp_sent") is not None:
+    intel = graph_state.get("intelligence_log") or {}
+    review_complete = bool(intel.get("leadership_summary"))
+    pieces = ["Voice Cloning ✓", "IVR Entry ✓"]
+    if graph_state.get("agent_alert_fired"):
+        if review_complete:
+            pieces.append(f"Agent Handoff ✓ — Reviewer: {decision}")
+        else:
+            pieces.append("⏸ Agent Handoff — awaiting reviewer")
+    if graph_state.get("otp_sent"):
         pieces.append("Auth Challenge ✓")
-    if "leadership_summary" in (graph_state.get("intelligence_log") or {}):
+    if review_complete:
         pieces.append("Intelligence ✓")
     chips = "".join(
         f'<span style="background:#003087;color:#fff;padding:4px 10px;border-radius:3px;'
