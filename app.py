@@ -1277,9 +1277,10 @@ def render_live_simulation() -> dict:
     with left:
         incoming_slot = st.empty()
 
-        # ─── Customer Voiceprint ─────────────────────────────────────
+        # ─── Customer Voiceprint (the BASELINE) ──────────────────────
         dot_reg = "🟢" if has_reg else "⚪"
         st.markdown(f"##### {dot_reg}  Customer Voiceprint")
+        st.caption("Baseline — every call is compared against this.")
         method = st.radio(
             "Enrollment method",
             ["Record", "Upload file"],
@@ -1301,10 +1302,8 @@ def render_live_simulation() -> dict:
                     temp_path.write_bytes(content)
                 if st.session_state.get("registered_voice_path") != str(temp_path):
                     st.session_state["registered_voice_path"] = str(temp_path)
+                    st.session_state["registered_voice_name"] = "live recording.wav"
                     _reset_call()
-                st.caption(f"Active · {len(content) / 1024:0.0f} KB")
-            elif has_reg:
-                st.caption("Active.")
         else:
             uploaded = st.file_uploader(
                 "Registered Customer Voice",
@@ -1313,7 +1312,9 @@ def render_live_simulation() -> dict:
                 label_visibility="collapsed",
             )
             if uploaded is not None:
-                content = uploaded.read()
+                # getvalue() is non-consuming so Streamlit's reruns don't
+                # leave us with a half-empty buffer on subsequent reads.
+                content = uploaded.getvalue()
                 h = hashlib.md5(content).hexdigest()[:12]
                 suffix = Path(uploaded.name).suffix.lower() or ".wav"
                 temp_path = Path(tempfile.gettempdir()) / f"voiceguard_ref_{h}{suffix}"
@@ -1321,30 +1322,37 @@ def render_live_simulation() -> dict:
                     temp_path.write_bytes(content)
                 if st.session_state.get("registered_voice_path") != str(temp_path):
                     st.session_state["registered_voice_path"] = str(temp_path)
+                    st.session_state["registered_voice_name"] = uploaded.name
                     _reset_call()
-                st.caption(f"Active · {Path(uploaded.name).name}")
-            elif has_reg:
-                st.caption("Active.")
+        # Persistent status — survives reruns even when the uploader chip clears
+        if has_reg:
+            ref_name = st.session_state.get("registered_voice_name", "enrolled clip")
+            ref_size = Path(st.session_state["registered_voice_path"]).stat().st_size
+            st.success(f"✓ Active · {ref_name} · {ref_size / 1024:0.0f} KB", icon=None)
+        else:
+            st.caption("⚪ No voiceprint enrolled yet.")
 
-        # ─── Demo Audio · AI clone of the customer's own voice ───────
+        # ─── Caller Audio Under Test (THE TEST SAMPLE) ───────────────
         dot_clone = "🟢" if has_clone else "⚪"
-        st.markdown(f"##### {dot_clone}  Demo Audio · AI Clone of Customer")
+        st.markdown(f"##### {dot_clone}  Caller Audio Under Test")
+        st.caption("The audio that gets compared against the voiceprint above.")
         clone = st.file_uploader(
-            "Upload AI clone of customer voice",
+            "Caller audio (e.g. AI clone of customer for the hardest test case)",
             type=["wav", "mp3", "m4a", "flac"],
             key="clone_audio_uploader",
             label_visibility="collapsed",
             help=(
-                "Generate a clone of the enrolled customer's voice "
-                "externally (e.g. ElevenLabs voice-cloning) and upload "
-                "the result here. Powers Scenario 2 — the hardest case "
-                "for the system to catch. If empty, Scenario 2 falls "
-                "back to a generic ElevenLabs sample of a different "
-                "speaker."
+                "Drop in any caller audio you want analysed against the "
+                "enrolled voiceprint. The intended use case is an AI "
+                "clone of the customer's own voice (generate one with "
+                "ElevenLabs voice-cloning and upload the result) — that "
+                "powers Scenario 2 with the hardest possible test case. "
+                "If empty, Scenario 2 falls back to a generic ElevenLabs "
+                "sample of a different speaker."
             ),
         )
         if clone is not None:
-            content = clone.read()
+            content = clone.getvalue()
             h = hashlib.md5(content).hexdigest()[:12]
             suffix = Path(clone.name).suffix.lower() or ".wav"
             temp_path = Path(tempfile.gettempdir()) / f"voiceguard_clone_{h}{suffix}"
@@ -1354,13 +1362,18 @@ def render_live_simulation() -> dict:
             if ovr.get("2 · AI Voice Clone of Customer") != str(temp_path):
                 ovr["2 · AI Voice Clone of Customer"] = str(temp_path)
                 st.session_state["scenario_audio_overrides"] = ovr
+                st.session_state["clone_audio_name"] = clone.name
                 _reset_call()
-            st.caption(f"Loaded · {Path(clone.name).name}")
             has_clone = True
-        elif has_clone:
-            st.caption("Loaded.")
+        if has_clone:
+            cl_name = st.session_state.get("clone_audio_name", "uploaded clip")
+            cl_path = st.session_state["scenario_audio_overrides"]["2 · AI Voice Clone of Customer"]
+            cl_size = Path(cl_path).stat().st_size
+            st.success(f"✓ Loaded · {cl_name} · {cl_size / 1024:0.0f} KB", icon=None)
         else:
-            st.caption("None — Scenario 2 will use the fallback ElevenLabs sample.")
+            st.caption("⚪ Scenario 2 will fall back to the generic ElevenLabs sample.")
+
+        st.caption("ℹ️  Speaker Match compares the voiceprint above against whichever audio is loaded for the active scenario.")
 
         # ─── Active Scenario ─────────────────────────────────────────
         st.markdown("##### Active Scenario")
@@ -1716,6 +1729,8 @@ def init_session() -> None:
     ss.setdefault("graph_thread_id", "")
     ss.setdefault("graph_error",   "")
     ss.setdefault("scenario_audio_overrides", {})
+    ss.setdefault("registered_voice_name", "")
+    ss.setdefault("clone_audio_name", "")
 
 
 def main() -> None:
