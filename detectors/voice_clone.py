@@ -1,20 +1,16 @@
 """Wav2Vec2-based voice-cloning detector.
 
-Replaces `random.uniform` scoring in `agents/node1_voice_cloning.py` with two
-honest signals:
+Two honest signals, both computed fresh per audio file:
 
-  * `spectral_score` — P(synthetic) from a Wav2Vec2 deepfake classifier
-    fine-tuned on ASVspoof. Catches TTS / voice-clone artifacts in the
-    spectrum that are hard to reproduce naturally.
+  * `spectral_score` — P(synthetic) directly from a Wav2Vec2 deepfake
+    classifier. Raw model probability, no calibration applied — what
+    you see is what the model says. Production deployments may want
+    a cost-aware calibration on top (the FP/FN cost asymmetry is
+    workload-specific) but for the demo we surface the model's actual
+    output so the scores are interpretable as probabilities.
   * `prosody_score`  — F0-contour anomaly from librosa.yin. Synthetic
     speech tends to have unnaturally regular pitch; we measure the
     coefficient of variation of voiced-frame F0 and invert.
-
-The classifier output is then passed through an FP-aware calibration that
-biases scores away from false-positive territory — JPM's cost model puts
-false positives at 19% of total fraud cost vs. 7% for missed fraud, so
-the system should require higher confidence before pushing a call into
-FLAG / BLOCK.
 """
 
 from __future__ import annotations
@@ -100,30 +96,18 @@ def _duration(audio_path: str) -> float:
     return float(librosa.get_duration(path=audio_path))
 
 
-def _calibrate_fp_aware(p: float) -> float:
-    """Power transform to bias the classifier toward fewer false positives.
-
-    p^1.6 leaves very-confident scores almost unchanged but pulls the
-    middling 0.4–0.7 region toward 0, where the FP cost lives.
-    """
-    return float(max(0.0, min(1.0, p ** 1.6)))
-
-
-def detect(audio_path: str | Path, fp_tuned: bool = True) -> dict:
+def detect(audio_path: str | Path) -> dict:
     """Run real-model detection on a single audio file.
 
-    Returned dict mirrors the VoiceGuardState fields populated by Stage 1
-    (raw_audio_duration_sec, spectral_score, prosody_score) plus a
-    `model_used` tag for UI display.
+    Returns the raw model probability for spectral_score (no calibration
+    applied) plus the librosa F0 prosody score. What you see is what the
+    model says.
     """
     p = str(audio_path)
-    spectral_raw = _spectral_score(p)
-    spectral = _calibrate_fp_aware(spectral_raw) if fp_tuned else spectral_raw
+    spectral = _spectral_score(p)
     return {
         "raw_audio_duration_sec": round(_duration(p), 2),
         "spectral_score": round(spectral, 3),
-        "spectral_score_raw": round(spectral_raw, 3),
         "prosody_score": round(_prosody_score(p), 3),
         "model_used": MODEL_NAME,
-        "fp_tuned": fp_tuned,
     }

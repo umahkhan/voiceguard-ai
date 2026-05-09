@@ -36,7 +36,7 @@ SPOOFED_VOICE_FILE    = AUDIO_DIR / "customer_voiceprint_umair_spoofed.mp3"
 # Available customer voiceprints — the baseline pool the dashboard's
 # voiceprint dropdown picks from. Add new entries here to expand it.
 VOICEPRINTS: dict[str, str] = {
-    "Umair": "customer_voiceprint_umair.m4a",
+    "Umair Khan": "customer_voiceprint_umair.m4a",
 }
 
 
@@ -81,7 +81,7 @@ HIGH_FG, HIGH_BG = "#c81e1e", "#fee2e2"
 #     `fallback_audio` if the preferred file isn't recorded yet
 # ---------------------------------------------------------------------------
 SCENARIOS: dict[str, dict] = {
-    "Umair (real call)": {
+    "Real Call · Example 1": {
         "spectral": 0.05, "prosody": 0.05, "behavior": 0.10, "conf": 0.10,
         "audio": "customer_voiceprint_umair_real_call.m4a",
         "fallback_audio": "customer_voiceprint_umair.m4a",
@@ -102,7 +102,7 @@ SCENARIOS: dict[str, dict] = {
         ),
         "expected": "PASS",
     },
-    "Real Call Example 2": {
+    "Real Call · Example 2": {
         "spectral": 0.05, "prosody": 0.05, "behavior": 0.10, "conf": 0.10,
         "audio": "real_umair.m4a",
         "caller_id":      "+1 212-555-0199",
@@ -123,7 +123,7 @@ SCENARIOS: dict[str, dict] = {
         ),
         "expected": "PASS",
     },
-    "Umair Spoofed": {
+    "AI Clone · Neutral Script": {
         "spectral": 0.55, "prosody": 0.45, "behavior": 0.50, "conf": 0.60,
         "audio": "customer_voiceprint_umair_spoofed.mp3",
         "caller_id":      "+1 415-555-0144",
@@ -143,7 +143,7 @@ SCENARIOS: dict[str, dict] = {
         ),
         "expected": "BLOCK",
     },
-    "Umair Spoofed — Urgent Script": {
+    "AI Clone · Urgent Script": {
         "spectral": 0.55, "prosody": 0.45, "behavior": 0.65, "conf": 0.65,
         "audio": "customer_voiceprint_urgentcall_spoof_umair.mp3",
         "caller_id":      "+1 415-555-0144",
@@ -164,7 +164,7 @@ SCENARIOS: dict[str, dict] = {
         ),
         "expected": "BLOCK",
     },
-    "Robocall claiming to be Umair": {
+    "Robocall": {
         "spectral": 0.94, "prosody": 0.91, "behavior": 0.89, "conf": 0.94,
         "audio": "robocall_umair.wav",
         "caller_id":      "+1 800-555-0123",
@@ -286,7 +286,7 @@ def _pipeline_position(graph_state: dict | None) -> str:
 def _live_scores_for(audio_path: str) -> dict:
     """Run the real deepfake detector on an audio path. Cached across reruns."""
     from detectors import detect
-    return detect(audio_path, fp_tuned=True)
+    return detect(audio_path)
 
 
 @st.cache_data(show_spinner=False)
@@ -1285,7 +1285,7 @@ def render_live_simulation() -> dict:
 
         # ─── Customer Voiceprint — dropdown + audio player ───────────
         st.markdown("##### 🟢  Customer Voiceprint")
-        st.caption("Baseline — every caller is compared against this.")
+        st.caption("Customer: **Umair Khan** · Account ****0042")
         vp_choice = st.selectbox(
             "Voiceprint",
             list(VOICEPRINTS.keys()),

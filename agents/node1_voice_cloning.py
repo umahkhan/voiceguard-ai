@@ -32,7 +32,7 @@ def voice_cloning_detector(state: VoiceGuardState) -> VoiceGuardState:
     if live_mode and audio_path:
         from detectors import detect
 
-        result = detect(audio_path, fp_tuned=True)
+        result = detect(audio_path)
         spectral = result["spectral_score"]
         prosody = result["prosody_score"]
         duration = result["raw_audio_duration_sec"]
