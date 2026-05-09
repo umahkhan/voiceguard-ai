@@ -1189,6 +1189,66 @@ def _render_streaming_right(slot, state: dict, stage: int) -> None:
                 st.markdown(audit_log_html(), unsafe_allow_html=True)
 
 
+@st.fragment
+def _hitl_panel(state: dict) -> None:
+    """Reviewer action buttons + audit log as a fragment.
+
+    Button clicks only rerun this section — not the full page — so there
+    is no full-screen fog between clicking an action and seeing the result.
+    """
+    st.markdown(hitl_header_html(state), unsafe_allow_html=True)
+
+    b1, b2, b3 = st.columns(3)
+    verdict = state["verdict"]
+    seq = st.session_state.get("call_seq", 0)
+    with b1:
+        approve = st.button(
+            "✓ Approve & Continue",
+            key=f"hitl_approve_{seq}",
+            disabled=(verdict == "BLOCK"),
+            use_container_width=True,
+        )
+    with b2:
+        stepup = st.button(
+            "⚠ Step-Up Auth",
+            key=f"hitl_stepup_{seq}",
+            use_container_width=True,
+        )
+    with b3:
+        block = st.button(
+            "✕ Block & Escalate",
+            key=f"hitl_block_{seq}",
+            use_container_width=True,
+        )
+    if approve or stepup or block:
+        decision = "approve" if approve else ("stepup" if stepup else "block")
+        tid = st.session_state.get("graph_thread_id")
+        try:
+            if tid:
+                final_state = _resume_pipeline(decision, tid)
+                st.session_state["graph_state"] = final_state
+        except Exception as exc:  # noqa: BLE001
+            st.session_state["graph_error"] = str(exc)
+        st.session_state.setdefault("reviewer_log", []).append({
+            "ts":       time.strftime("%H:%M:%S"),
+            "scenario": state["name"],
+            "decision": decision,
+            "verdict":  verdict,
+        })
+        st.session_state["call_seq"] = seq + 1
+        # No st.rerun() — the fragment reruns itself, refreshing only this panel.
+
+    gs = st.session_state.get("graph_state")
+    if gs:
+        st.markdown(_pipeline_status_html(_pipeline_position(gs), gs), unsafe_allow_html=True)
+
+    ctx_col, log_col = st.columns([6, 4])
+    with ctx_col:
+        st.markdown(caller_context_html(state), unsafe_allow_html=True)
+    with log_col:
+        st.markdown(audit_log_html(), unsafe_allow_html=True)
+
+
 def _render_complete_right(slot, state: dict) -> None:
     """Render the right-side stack: verdict, signals, HITL panel + context."""
     with slot.container():
@@ -1224,61 +1284,7 @@ def _render_complete_right(slot, state: dict) -> None:
                 "IVR navigation pattern anomaly.",
             )
 
-        st.markdown(hitl_header_html(state), unsafe_allow_html=True)
-
-        b1, b2, b3 = st.columns(3)
-        verdict = state["verdict"]
-        with b1:
-            approve = st.button(
-                "✓ Approve & Continue",
-                key=f"hitl_approve_{st.session_state.get('call_seq', 0)}",
-                disabled=(verdict == "BLOCK"),
-                use_container_width=True,
-            )
-        with b2:
-            stepup = st.button(
-                "⚠ Step-Up Auth",
-                key=f"hitl_stepup_{st.session_state.get('call_seq', 0)}",
-                use_container_width=True,
-            )
-        with b3:
-            block = st.button(
-                "✕ Block & Escalate",
-                key=f"hitl_block_{st.session_state.get('call_seq', 0)}",
-                use_container_width=True,
-            )
-        if approve or stepup or block:
-            decision = "approve" if approve else ("stepup" if stepup else "block")
-            # Resume the LangGraph pipeline with this decision. The graph
-            # routes to auth_challenge (stepup) or straight to intelligence
-            # (approve / block) and runs to END.
-            tid = st.session_state.get("graph_thread_id")
-            try:
-                if tid:
-                    final_state = _resume_pipeline(decision, tid)
-                    st.session_state["graph_state"] = final_state
-            except Exception as exc:  # noqa: BLE001
-                st.session_state["graph_error"] = str(exc)
-            st.session_state.setdefault("reviewer_log", []).append({
-                "ts":       time.strftime("%H:%M:%S"),
-                "scenario": state["name"],
-                "decision": decision,
-                "verdict":  verdict,
-            })
-            st.session_state["call_seq"] = st.session_state.get("call_seq", 0) + 1
-            st.rerun()
-
-        # Pipeline status banner — shows where the call sits in the graph
-        gs = st.session_state.get("graph_state")
-        pos = _pipeline_position(gs)
-        if gs:
-            st.markdown(_pipeline_status_html(pos, gs), unsafe_allow_html=True)
-
-        ctx_col, log_col = st.columns([6, 4])
-        with ctx_col:
-            st.markdown(caller_context_html(state), unsafe_allow_html=True)
-        with log_col:
-            st.markdown(audit_log_html(), unsafe_allow_html=True)
+        _hitl_panel(state)
 
 
 def _pipeline_status_html(position: str, graph_state: dict) -> str:
