@@ -300,6 +300,29 @@ def _pipeline_position(graph_state: dict | None) -> str:
 
 
 @st.cache_data(show_spinner=False)
+def _audio_bytes_for_player(path_str: str) -> tuple[bytes, str]:
+    """Return (bytes, mime_type) suitable for st.audio.
+
+    Streamlit Cloud's libsndfile lacks the AAC codec, so st.audio silently
+    drops the player when given raw M4A bytes with format='audio/mp4'.
+    For M4A/AAC files we transcode to WAV in-memory via librosa's audioread
+    fallback (which uses system ffmpeg) so the browser always gets WAV,
+    which every Streamlit version renders reliably.
+    """
+    import io
+    path = Path(path_str)
+    if path.suffix.lower() in {".m4a", ".aac"}:
+        import librosa
+        import soundfile as sf
+        y, sr = librosa.load(path_str, sr=None, mono=True)
+        buf = io.BytesIO()
+        sf.write(buf, y, sr, format="WAV")
+        buf.seek(0)
+        return buf.read(), "audio/wav"
+    return path.read_bytes(), _audio_mime(path)
+
+
+@st.cache_data(show_spinner=False)
 def _live_scores_for(audio_path: str) -> dict:
     """Run the real deepfake detector on an audio path. Cached across reruns."""
     from detectors import detect
@@ -1311,7 +1334,10 @@ def render_live_simulation() -> dict:
         vp_path = AUDIO_DIR / VOICEPRINTS[vp_choice]
         if vp_path.exists():
             # Display only — voiceprint is a demo reference, not fed to the model.
-            st.audio(vp_path.read_bytes(), format=_audio_mime(vp_path))
+            # Use the cached converter so M4A files are sent as WAV (Streamlit
+            # Cloud's libsndfile lacks AAC, which silently drops the audio/mp4 player).
+            _vp_bytes, _vp_mime = _audio_bytes_for_player(str(vp_path))
+            st.audio(_vp_bytes, format=_vp_mime)
         has_reg = True
 
         # ─── Caller Audio Under Test — orange "under test" dot ───────
@@ -1417,8 +1443,8 @@ def run_call_animation(sim: dict, audit: dict) -> None:
     state = sim["state"]
     audio_path = Path(state["audio_path"]) if state.get("audio_path") else None
     if audio_path and audio_path.exists():
-        fmt = "audio/mp3" if audio_path.suffix.lower() == ".mp3" else "audio/wav"
-        sim["audio_slot"].audio(str(audio_path), format=fmt, autoplay=True)
+        _call_bytes, _call_mime = _audio_bytes_for_player(str(audio_path))
+        sim["audio_slot"].audio(_call_bytes, format=_call_mime, autoplay=True)
 
     # Drive the LangGraph pipeline through to its human-review pause.
     # Thread ID is timestamp-unique so consecutive Connect clicks don't
