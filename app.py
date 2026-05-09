@@ -816,17 +816,22 @@ def render_verdict_bar(verdict: str, conf: float) -> None:
 
 def render_metric(label: str, score: float, description: str, inverted: bool = False) -> None:
     """Render a metric tile. inverted=True means higher=better (e.g. speaker
-    match) — risk badging flips to LOW for high values."""
+    match) — risk badging flips to LOW for high values, and the badge text
+    switches to MATCH / PARTIAL / MISMATCH so the label reads correctly."""
     risk_score = (1.0 - score) if inverted else score
     level = _level(risk_score)
     fg, _bg = _level_palette(level)
     pct = max(2, score * 100)
+    if inverted:
+        badge_text = {"LOW": "MATCH", "MED": "PARTIAL", "HIGH": "MISMATCH"}[level]
+    else:
+        badge_text = level
     html = (
         '<div class="vg-metric">'
         f'<div class="vg-m-label">{label}</div>'
         '<div style="display:flex;align-items:baseline;gap:8px;margin-top:3px;">'
         f'<div class="vg-m-value">{score:0.2f}</div>'
-        f'<span class="vg-badge {level.lower()}">{level}</span>'
+        f'<span class="vg-badge {level.lower()}">{badge_text}</span>'
         '</div>'
         f'<div class="vg-m-desc">{description}</div>'
         f'<div class="vg-m-bar"><span style="width:{pct:0.0f}%;background:{fg};"></span></div>'
