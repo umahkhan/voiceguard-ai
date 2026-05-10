@@ -1733,8 +1733,8 @@ def render_business_case() -> None:
             st.rerun()
     with nav_c:
         st.markdown(
-            f"<div style='text-align:center;font-size:26px;color:{ACCENT};"
-            f"letter-spacing:1.2px;text-transform:uppercase;font-weight:900;"
+            f"<div style='text-align:center;font-size:32px;color:{ACCENT};"
+            f"letter-spacing:1.5px;text-transform:uppercase;font-weight:900;"
             f"padding:2px 0;line-height:1.15;'>{title}</div>",
             unsafe_allow_html=True,
         )
@@ -1788,13 +1788,13 @@ def _render_hero_slide(NAVY_TOP: str, RED: str) -> None:
     """Slide 0 — Hero: title, subtitle, and four KPI tiles."""
     st.markdown(
         f"""
-        <div style='background:{NAVY_TOP};color:#fff;padding:22px 30px;
-        border-radius:6px;margin-top:0;margin-bottom:10px;
-        border-left:6px solid {RED};'>
-          <div style='font-size:48px;font-weight:900;line-height:1.05;
-          letter-spacing:-0.8px;'>A New Kind of Attacker Is Calling Your Bank.</div>
-          <div style='font-size:17px;color:#cbd5e1;margin-top:10px;
-          line-height:1.45;font-weight:400;max-width:920px;'>
+        <div style='background:{NAVY_TOP};color:#fff;padding:38px 44px;
+        border-radius:6px;margin-top:0;margin-bottom:16px;
+        border-left:8px solid {RED};'>
+          <div style='font-size:62px;font-weight:900;line-height:1.02;
+          letter-spacing:-1.2px;'>A New Kind of Attacker Is Calling Your Bank.</div>
+          <div style='font-size:22px;color:#cbd5e1;margin-top:18px;
+          line-height:1.45;font-weight:400;max-width:1040px;'>
             AI-generated voice agents are impersonating real customers —
             bypassing IVR, fooling biometrics, and manipulating live agents
             in real time.
@@ -1816,12 +1816,12 @@ def _render_hero_slide(NAVY_TOP: str, RED: str) -> None:
             st.markdown(
                 f"""
                 <div style='background:{color};color:#fff;border-radius:6px;
-                padding:16px 16px;height:100%;text-align:center;
-                box-shadow:0 1px 4px rgba(0,0,0,0.08);'>
-                  <div style='font-size:38px;font-weight:900;letter-spacing:-0.5px;
+                padding:30px 20px;height:100%;text-align:center;
+                box-shadow:0 2px 6px rgba(0,0,0,0.1);'>
+                  <div style='font-size:56px;font-weight:900;letter-spacing:-0.8px;
                   font-family:Georgia,serif;line-height:1;'>{val}</div>
-                  <div style='font-size:12px;color:rgba(255,255,255,0.9);
-                  margin-top:7px;line-height:1.35;font-weight:500;'>{sub}</div>
+                  <div style='font-size:15px;color:rgba(255,255,255,0.92);
+                  margin-top:12px;line-height:1.4;font-weight:500;'>{sub}</div>
                 </div>
                 """,
                 unsafe_allow_html=True,
@@ -1831,18 +1831,18 @@ def _render_hero_slide(NAVY_TOP: str, RED: str) -> None:
 def _render_problem_slide(NAVY_TOP: str, RED: str) -> None:
     """Slide 1 — The Problem."""
     st.markdown(
-        f"<h2 style='font-size:50px;font-weight:900;color:{NAVY_TOP};"
-        f"font-family:Georgia,serif;margin:0 0 12px 0;line-height:1.1;"
-        f"letter-spacing:-0.5px;'>"
+        f"<h2 style='font-size:62px;font-weight:900;color:{NAVY_TOP};"
+        f"font-family:Georgia,serif;margin:0 0 18px 0;line-height:1.05;"
+        f"letter-spacing:-1px;'>"
         f"Banks built contact centers to serve people. That assumption is now the vulnerability.</h2>",
         unsafe_allow_html=True,
     )
 
     st.markdown(
         f"""
-        <div style='background:{NAVY_TOP};color:#fff;padding:14px 20px;
-        border-radius:6px;margin-bottom:10px;'>
-          <div style='font-size:16px;line-height:1.5;font-weight:500;'>
+        <div style='background:{NAVY_TOP};color:#fff;padding:24px 30px;
+        border-radius:6px;margin-bottom:16px;'>
+          <div style='font-size:20px;line-height:1.55;font-weight:500;'>
             AI voice agents call bank contact centers and impersonate real
             customers to bypass authentication. The asymmetry is brutal:
             an attacker needs <b>3–5 seconds of audio</b> to clone a
@@ -1868,14 +1868,14 @@ def _render_problem_slide(NAVY_TOP: str, RED: str) -> None:
             st.markdown(
                 f"""
                 <div style='background:#fff;border:1px solid {BORDER};
-                border-left:4px solid {accent};border-radius:4px;
-                padding:10px 14px;height:100%;
-                display:grid;grid-template-columns:auto 1fr;gap:12px;
+                border-left:5px solid {accent};border-radius:4px;
+                padding:18px 22px;height:100%;
+                display:grid;grid-template-columns:auto 1fr;gap:16px;
                 align-items:start;'>
-                  <div style='font-size:22px;font-weight:900;color:{accent};line-height:1;'>{num}</div>
+                  <div style='font-size:34px;font-weight:900;color:{accent};line-height:1;'>{num}</div>
                   <div>
-                    <div style='font-size:15px;font-weight:800;color:{INK};'>{title}</div>
-                    <div style='font-size:13px;color:{INK};margin-top:4px;line-height:1.4;'>{desc}</div>
+                    <div style='font-size:19px;font-weight:800;color:{INK};'>{title}</div>
+                    <div style='font-size:15px;color:{INK};margin-top:6px;line-height:1.5;'>{desc}</div>
                   </div>
                 </div>
                 """,
@@ -1884,9 +1884,9 @@ def _render_problem_slide(NAVY_TOP: str, RED: str) -> None:
 
     st.markdown(
         f"""
-        <div style='background:#fef2f2;border-left:4px solid {RED};
-        border-radius:4px;padding:10px 16px;margin-top:10px;
-        font-size:13.5px;color:{INK};line-height:1.5;'>
+        <div style='background:#fef2f2;border-left:5px solid {RED};
+        border-radius:4px;padding:16px 22px;margin-top:16px;
+        font-size:16px;color:{INK};line-height:1.55;'>
           <b style='color:{RED};'>Evidence:</b> MSUFCU disclosed
           <b>$2.57M</b> in deepfake-driven exposure over 14 months —
           <i>discovered only after</i> deploying AI voice screening. By the
@@ -1900,9 +1900,9 @@ def _render_problem_slide(NAVY_TOP: str, RED: str) -> None:
 def _render_gap_slide(NAVY_TOP: str, RED: str) -> None:
     """Slide 2 — Gap Analysis: Why Today's Tools Fail."""
     st.markdown(
-        f"<h2 style='font-size:54px;font-weight:900;color:{NAVY_TOP};"
-        f"font-family:Georgia,serif;margin:0 0 14px 0;line-height:1.1;"
-        f"letter-spacing:-0.5px;'>"
+        f"<h2 style='font-size:72px;font-weight:900;color:{NAVY_TOP};"
+        f"font-family:Georgia,serif;margin:0 0 22px 0;line-height:1.05;"
+        f"letter-spacing:-1.2px;'>"
         f"Why Today's Tools Fail</h2>",
         unsafe_allow_html=True,
     )
@@ -1927,26 +1927,26 @@ def _render_gap_slide(NAVY_TOP: str, RED: str) -> None:
             st.markdown(
                 f"""
                 <div style='background:#fff;border:1px solid {BORDER};
-                border-top:4px solid {RED};border-radius:6px;
-                padding:12px 16px;height:100%;
-                box-shadow:0 1px 4px rgba(0,0,0,0.06);'>
-                  <div style='font-size:17px;font-weight:800;color:{NAVY_TOP};
-                  font-family:Georgia,serif;'>{name}</div>
-                  <div style='font-size:12px;color:{MUTED};font-style:italic;
-                  margin-top:2px;'>{vendors}</div>
-                  <div style='font-size:13px;color:{INK};margin-top:8px;
-                  line-height:1.5;'>{body}</div>
-                  <div style='font-size:13px;font-weight:800;color:{RED};
-                  margin-top:9px;border-top:1px dashed {BORDER};
-                  padding-top:7px;'>✗ {headline}</div>
+                border-top:5px solid {RED};border-radius:6px;
+                padding:22px 26px;height:100%;
+                box-shadow:0 2px 6px rgba(0,0,0,0.08);'>
+                  <div style='font-size:24px;font-weight:800;color:{NAVY_TOP};
+                  font-family:Georgia,serif;line-height:1.15;'>{name}</div>
+                  <div style='font-size:14px;color:{MUTED};font-style:italic;
+                  margin-top:4px;'>{vendors}</div>
+                  <div style='font-size:15.5px;color:{INK};margin-top:14px;
+                  line-height:1.55;'>{body}</div>
+                  <div style='font-size:16px;font-weight:800;color:{RED};
+                  margin-top:14px;border-top:1px dashed {BORDER};
+                  padding-top:11px;'>✗ {headline}</div>
                 </div>
                 """,
                 unsafe_allow_html=True,
             )
 
     st.markdown(
-        f"<div style='text-align:center;font-size:14px;color:{NAVY};"
-        f"font-style:italic;margin-top:10px;'>"
+        f"<div style='text-align:center;font-size:17px;color:{NAVY};"
+        f"font-style:italic;margin-top:18px;'>"
         f"<b>The unmet gap:</b> a real-time, layered, voice-aware decision "
         f"layer that catches what each existing tool misses.</div>",
         unsafe_allow_html=True,
@@ -1955,9 +1955,9 @@ def _render_gap_slide(NAVY_TOP: str, RED: str) -> None:
 def _render_approach_slide(NAVY_TOP: str) -> None:
     """Slide 3 — Our Approach: two ML signals + HITL."""
     st.markdown(
-        f"<h2 style='font-size:52px;font-weight:900;color:{NAVY_TOP};"
-        f"font-family:Georgia,serif;margin:0 0 14px 0;line-height:1.1;"
-        f"letter-spacing:-0.5px;'>"
+        f"<h2 style='font-size:64px;font-weight:900;color:{NAVY_TOP};"
+        f"font-family:Georgia,serif;margin:0 0 22px 0;line-height:1.05;"
+        f"letter-spacing:-1.2px;'>"
         f"Two ML Signals + Human-in-the-Loop</h2>",
         unsafe_allow_html=True,
     )
@@ -1996,26 +1996,26 @@ def _render_approach_slide(NAVY_TOP: str) -> None:
     for col, (num, title, sub, body, checks) in zip(cols, pillars):
         with col:
             checks_html = "".join(
-                f"<div style='font-size:12.5px;color:{NAVY};margin-top:4px;"
+                f"<div style='font-size:14.5px;color:{NAVY};margin-top:6px;"
                 f"font-weight:600;'>✓ {c}</div>"
                 for c in checks
             )
             st.markdown(
                 f"""
                 <div style='background:#fff;border:1px solid {BORDER};
-                border-radius:6px;padding:12px 16px;height:100%;
-                box-shadow:0 1px 4px rgba(0,0,0,0.06);'>
+                border-radius:6px;padding:22px 26px;height:100%;
+                box-shadow:0 2px 6px rgba(0,0,0,0.08);'>
                   <div style='display:inline-block;background:{NAVY_TOP};
-                  color:#fff;border-radius:50%;width:28px;height:28px;
-                  line-height:28px;text-align:center;font-size:12px;
+                  color:#fff;border-radius:50%;width:40px;height:40px;
+                  line-height:40px;text-align:center;font-size:15px;
                   font-weight:900;'>{num}</div>
-                  <div style='font-size:17px;font-weight:800;color:{NAVY_TOP};
-                  margin-top:8px;line-height:1.2;font-family:Georgia,serif;'>{title}</div>
-                  <div style='font-size:12px;color:{MUTED};font-style:italic;
-                  margin-top:2px;'>{sub}</div>
-                  <div style='font-size:13px;color:{INK};margin-top:7px;
-                  line-height:1.45;'>{body}</div>
-                  <div style='border-top:1px solid {BORDER};margin:8px 0 2px 0;'></div>
+                  <div style='font-size:23px;font-weight:800;color:{NAVY_TOP};
+                  margin-top:12px;line-height:1.2;font-family:Georgia,serif;'>{title}</div>
+                  <div style='font-size:14px;color:{MUTED};font-style:italic;
+                  margin-top:4px;'>{sub}</div>
+                  <div style='font-size:15px;color:{INK};margin-top:11px;
+                  line-height:1.55;'>{body}</div>
+                  <div style='border-top:1px solid {BORDER};margin:13px 0 4px 0;'></div>
                   {checks_html}
                 </div>
                 """,
@@ -2025,9 +2025,9 @@ def _render_approach_slide(NAVY_TOP: str) -> None:
     # Empirical evidence callout from our testing
     st.markdown(
         f"""
-        <div style='background:#eff6ff;border-left:4px solid {ACCENT};
-        border-radius:4px;padding:10px 16px;margin-top:10px;
-        font-size:13.5px;color:{INK};line-height:1.5;'>
+        <div style='background:#eff6ff;border-left:5px solid {ACCENT};
+        border-radius:4px;padding:16px 22px;margin-top:18px;
+        font-size:16px;color:{INK};line-height:1.55;'>
           <b style='color:{NAVY};'>Why layered matters — measured on our own test set.</b>
           An ElevenLabs clone of the customer's voice scored
           <code>fake_prob = 0.99</code> on the synthesis classifier <i>and</i>
@@ -2044,12 +2044,12 @@ def _render_approach_slide(NAVY_TOP: str) -> None:
 def _render_pipeline_slide(NAVY_TOP: str, AMBER: str) -> None:
     """Slide 4 — The Pipeline: six LangGraph stages."""
     st.markdown(
-        f"<h2 style='font-size:48px;font-weight:900;color:{NAVY_TOP};"
-        f"font-family:Georgia,serif;margin:0 0 4px 0;line-height:1.1;"
-        f"letter-spacing:-0.5px;'>"
+        f"<h2 style='font-size:58px;font-weight:900;color:{NAVY_TOP};"
+        f"font-family:Georgia,serif;margin:0 0 8px 0;line-height:1.05;"
+        f"letter-spacing:-1px;'>"
         f"What Happens When a Call Comes In</h2>"
-        f"<div style='font-size:14px;color:{MUTED};font-style:italic;"
-        f"margin-bottom:10px;'>"
+        f"<div style='font-size:17px;color:{MUTED};font-style:italic;"
+        f"margin-bottom:16px;'>"
         f"Six LangGraph stages. The reviewer is the decision authority — their click "
         f"resumes the graph and routes one of three ways."
         f"</div>",
@@ -2089,29 +2089,29 @@ def _render_pipeline_slide(NAVY_TOP: str, AMBER: str) -> None:
     for col, (num, title, sub, body, foot, accent) in zip(cols, pre):
         with col:
             foot_html = (
-                f"<div style='font-size:11.5px;margin-top:7px;line-height:1.35;"
-                f"border-top:1px dashed {BORDER};padding-top:6px;color:{INK};'>{foot}</div>"
+                f"<div style='font-size:13px;margin-top:10px;line-height:1.4;"
+                f"border-top:1px dashed {BORDER};padding-top:9px;color:{INK};'>{foot}</div>"
                 if foot else ""
             )
             st.markdown(
                 f"""
                 <div style='background:#fff;border:1px solid {BORDER};
-                border-top:4px solid {accent};border-radius:6px;
-                padding:10px 14px;height:100%;
-                box-shadow:0 1px 3px rgba(0,0,0,0.05);'>
-                  <div style='display:flex;align-items:center;gap:8px;'>
+                border-top:5px solid {accent};border-radius:6px;
+                padding:14px 18px;height:100%;
+                box-shadow:0 1px 4px rgba(0,0,0,0.06);'>
+                  <div style='display:flex;align-items:center;gap:10px;'>
                     <div style='background:{accent};color:#fff;
-                    border-radius:50%;width:24px;height:24px;
-                    line-height:24px;text-align:center;font-size:11px;
+                    border-radius:50%;width:30px;height:30px;
+                    line-height:30px;text-align:center;font-size:13px;
                     font-weight:900;'>{num}</div>
-                    <div style='font-size:14px;font-weight:800;color:{NAVY_TOP};
+                    <div style='font-size:17px;font-weight:800;color:{NAVY_TOP};
                     line-height:1.2;'>{title}</div>
                   </div>
-                  <div style='font-size:10.5px;color:{MUTED};
+                  <div style='font-size:12px;color:{MUTED};
                   letter-spacing:0.6px;text-transform:uppercase;
-                  font-weight:700;margin-top:5px;'>{sub}</div>
-                  <div style='font-size:12.5px;color:{INK};margin-top:6px;
-                  line-height:1.45;'>{body}</div>
+                  font-weight:700;margin-top:8px;'>{sub}</div>
+                  <div style='font-size:14px;color:{INK};margin-top:9px;
+                  line-height:1.5;'>{body}</div>
                   {foot_html}
                 </div>
                 """,
@@ -2120,8 +2120,8 @@ def _render_pipeline_slide(NAVY_TOP: str, AMBER: str) -> None:
 
     # ── Down arrow into the human review card ─────────────────────
     st.markdown(
-        f"<div style='text-align:center;font-size:20px;color:{AMBER};"
-        f"line-height:1;margin:4px 0 2px 0;'>↓</div>",
+        f"<div style='text-align:center;font-size:26px;color:{AMBER};"
+        f"line-height:1;margin:8px 0 4px 0;'>↓</div>",
         unsafe_allow_html=True,
     )
 
@@ -2129,14 +2129,14 @@ def _render_pipeline_slide(NAVY_TOP: str, AMBER: str) -> None:
     st.markdown(
         f"""
         <div style='background:#fffbeb;border:2px solid {AMBER};
-        border-radius:8px;padding:12px 18px;
-        box-shadow:0 2px 8px rgba(180,83,9,0.15);'>
-          <div style='display:flex;align-items:center;gap:12px;
+        border-radius:8px;padding:18px 24px;
+        box-shadow:0 2px 10px rgba(180,83,9,0.18);'>
+          <div style='display:flex;align-items:center;gap:14px;
           flex-wrap:wrap;'>
             <div style='background:{AMBER};color:#fff;
-            font-size:16px;font-weight:900;padding:6px 12px;
+            font-size:19px;font-weight:900;padding:9px 16px;
             border-radius:6px;letter-spacing:0.5px;'>👤 HUMAN REVIEWER</div>
-            <div style='font-size:13px;color:{INK};line-height:1.4;flex:1;
+            <div style='font-size:15px;color:{INK};line-height:1.5;flex:1;
             min-width:280px;'>
               Sees the alert, signals, and caller context. Picks one of three
               actions — the click writes <code>human_decision</code> to graph
@@ -2144,27 +2144,27 @@ def _render_pipeline_slide(NAVY_TOP: str, AMBER: str) -> None:
             </div>
           </div>
           <div style='display:grid;grid-template-columns:repeat(3,1fr);
-          gap:8px;margin-top:10px;'>
+          gap:12px;margin-top:14px;'>
             <div style='background:#dcfce7;border:1.5px solid #4ade80;
-            border-radius:5px;padding:7px 12px;'>
-              <div style='font-size:12px;color:#14532d;font-weight:900;
+            border-radius:5px;padding:12px 16px;'>
+              <div style='font-size:14px;color:#14532d;font-weight:900;
               letter-spacing:0.7px;'>✓ APPROVE</div>
-              <div style='font-size:12px;color:#14532d;margin-top:3px;
-              line-height:1.35;'>case cleared, routes directly to Stage 6 (Intelligence)</div>
+              <div style='font-size:13.5px;color:#14532d;margin-top:6px;
+              line-height:1.5;'>case cleared, routes directly to Stage 6 (Intelligence)</div>
             </div>
             <div style='background:#fef3c7;border:1.5px solid #f59e0b;
-            border-radius:5px;padding:7px 12px;'>
-              <div style='font-size:12px;color:#78350f;font-weight:900;
+            border-radius:5px;padding:12px 16px;'>
+              <div style='font-size:14px;color:#78350f;font-weight:900;
               letter-spacing:0.7px;'>⚠ STEP-UP AUTH</div>
-              <div style='font-size:12px;color:#78350f;margin-top:3px;
-              line-height:1.35;'>routes through Stage 5 (Auth Challenge) before clearing</div>
+              <div style='font-size:13.5px;color:#78350f;margin-top:6px;
+              line-height:1.5;'>routes through Stage 5 (Auth Challenge) before clearing</div>
             </div>
             <div style='background:#fee2e2;border:1.5px solid #ef4444;
-            border-radius:5px;padding:7px 12px;'>
-              <div style='font-size:12px;color:#7f1d1d;font-weight:900;
+            border-radius:5px;padding:12px 16px;'>
+              <div style='font-size:14px;color:#7f1d1d;font-weight:900;
               letter-spacing:0.7px;'>✗ BLOCK & ESCALATE</div>
-              <div style='font-size:12px;color:#7f1d1d;margin-top:3px;
-              line-height:1.35;'>transaction blocked, case logged at Stage 6</div>
+              <div style='font-size:13.5px;color:#7f1d1d;margin-top:6px;
+              line-height:1.5;'>transaction blocked, case logged at Stage 6</div>
             </div>
           </div>
         </div>
@@ -2173,8 +2173,8 @@ def _render_pipeline_slide(NAVY_TOP: str, AMBER: str) -> None:
     )
 
     st.markdown(
-        f"<div style='text-align:center;font-size:20px;color:{NAVY};"
-        f"line-height:1;margin:4px 0 2px 0;'>↓</div>",
+        f"<div style='text-align:center;font-size:26px;color:{NAVY};"
+        f"line-height:1;margin:8px 0 4px 0;'>↓</div>",
         unsafe_allow_html=True,
     )
 
@@ -2197,22 +2197,22 @@ def _render_pipeline_slide(NAVY_TOP: str, AMBER: str) -> None:
             st.markdown(
                 f"""
                 <div style='background:#fff;border:1px solid {BORDER};
-                border-top:4px solid {accent};border-radius:6px;
-                padding:10px 14px;height:100%;
-                box-shadow:0 1px 3px rgba(0,0,0,0.05);'>
-                  <div style='display:flex;align-items:center;gap:8px;'>
+                border-top:5px solid {accent};border-radius:6px;
+                padding:16px 20px;height:100%;
+                box-shadow:0 1px 4px rgba(0,0,0,0.06);'>
+                  <div style='display:flex;align-items:center;gap:10px;'>
                     <div style='background:{accent};color:#fff;
-                    border-radius:50%;width:24px;height:24px;
-                    line-height:24px;text-align:center;font-size:11px;
+                    border-radius:50%;width:30px;height:30px;
+                    line-height:30px;text-align:center;font-size:13px;
                     font-weight:900;'>{num}</div>
-                    <div style='font-size:14px;font-weight:800;color:{NAVY_TOP};
+                    <div style='font-size:18px;font-weight:800;color:{NAVY_TOP};
                     line-height:1.2;'>{title}</div>
                   </div>
-                  <div style='font-size:10.5px;color:{MUTED};
+                  <div style='font-size:12px;color:{MUTED};
                   letter-spacing:0.6px;text-transform:uppercase;
-                  font-weight:700;margin-top:5px;'>{sub}</div>
-                  <div style='font-size:12.5px;color:{INK};margin-top:6px;
-                  line-height:1.45;'>{body}</div>
+                  font-weight:700;margin-top:8px;'>{sub}</div>
+                  <div style='font-size:14.5px;color:{INK};margin-top:10px;
+                  line-height:1.55;'>{body}</div>
                 </div>
                 """,
                 unsafe_allow_html=True,
@@ -2220,9 +2220,9 @@ def _render_pipeline_slide(NAVY_TOP: str, AMBER: str) -> None:
 
     st.markdown(
         f"""
-        <div style='background:#eff6ff;border-left:4px solid {ACCENT};
-        border-radius:4px;padding:9px 16px;margin-top:10px;
-        font-size:13px;color:{INK};line-height:1.5;'>
+        <div style='background:#eff6ff;border-left:5px solid {ACCENT};
+        border-radius:4px;padding:14px 22px;margin-top:16px;
+        font-size:15px;color:{INK};line-height:1.55;'>
           <b style='color:{NAVY};'>Why this matters:</b> today's bank stack has
           no real-time AI-voice detection at <i>any</i> of these stages. VoiceGuard
           adds the ML signals at Stage 1 and the explicit human checkpoint at
